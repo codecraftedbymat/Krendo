@@ -8,6 +8,7 @@
 CREATE TABLE entreprises (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   nom TEXT NOT NULL,
+  statut_abonnement TEXT NOT NULL DEFAULT 'essai' CHECK(statut_abonnement IN ('essai','actif','suspendu','resilie')),
   cree_le TEXT DEFAULT CURRENT_TIMESTAMP
 );
 

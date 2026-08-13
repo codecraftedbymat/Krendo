@@ -16,6 +16,10 @@ function authentifier(req, res, next) {
   if (!header) return res.status(401).json({ erreur: 'Non authentifié' });
   try {
     const payload = jwt.verify(header.replace('Bearer ', ''), JWT_SECRET);
+    const entreprise = db.prepare('SELECT statut_abonnement FROM entreprises WHERE id = ?').get(payload.entreprise_id);
+    if (!entreprise || entreprise.statut_abonnement === 'suspendu' || entreprise.statut_abonnement === 'resilie') {
+      return res.status(403).json({ erreur: "L'accès de votre entreprise est actuellement suspendu." });
+    }
     req.utilisateur = payload;
     next();
   } catch {
@@ -41,6 +45,10 @@ app.post('/api/connexion', (req, res) => {
   const user = db.prepare('SELECT * FROM utilisateurs WHERE email = ? AND actif = 1').get(email);
   if (!user || !bcrypt.compareSync(mot_de_passe, user.mot_de_passe_hash)) {
     return res.status(401).json({ erreur: 'Email ou mot de passe incorrect' });
+  }
+  const entreprise = db.prepare('SELECT * FROM entreprises WHERE id = ?').get(user.entreprise_id);
+  if (entreprise.statut_abonnement === 'suspendu' || entreprise.statut_abonnement === 'resilie') {
+    return res.status(403).json({ erreur: "L'accès de votre entreprise est actuellement suspendu. Contactez votre administrateur." });
   }
   const role = db.prepare('SELECT * FROM roles WHERE id = ?').get(user.role_id);
   const token = jwt.sign(
