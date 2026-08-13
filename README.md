@@ -1,4 +1,4 @@
-# Planning App - Gestion de planning multi-clients
+# Krendo - Gestion de planning multi-clients
 
 Architecture multi-tenant (une seule base de données, plusieurs entreprises clientes isolées par entreprise_id).
 
