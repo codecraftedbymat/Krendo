@@ -83,13 +83,15 @@ function CarteMission({ mission, onOuvrir }) {
 }
 
 function DetailMission({ mission, utilisateur, onFermer }) {
-  const [onglet, setOnglet] = useState('reponses');
+  const [onglet, setOnglet] = useState('heures');
   const [reponses, setReponses] = useState([]);
   const [chargement, setChargement] = useState(true);
+  const [visibleTous, setVisibleTous] = useState(mission.planning_visible_tous);
   const navigate = useNavigate();
 
   const peutModifierCreneaux = utilisateur.permissions.peut_modifier_creneaux || utilisateur.permissions.peut_voir_tout;
   const peutValiderHeures = utilisateur.permissions.peut_valider_heures || utilisateur.permissions.peut_voir_tout;
+  const peutGererVisibilite = utilisateur.permissions.peut_creer_missions || utilisateur.permissions.peut_voir_tout;
 
   useEffect(() => {
     api.reponsesMission(mission.id).then(setReponses).finally(() => setChargement(false));
@@ -98,6 +100,12 @@ function DetailMission({ mission, utilisateur, onFermer }) {
   async function ouvrirChat(utilisateurId) {
     const conv = await api.ouvrirConversation(utilisateurId, mission.id);
     navigate(`/messages?conv=${conv.id}`);
+  }
+
+  async function basculerVisibilite() {
+    const nouveauStatut = !visibleTous;
+    setVisibleTous(nouveauStatut);
+    await api.majMission(mission.id, { planning_visible_tous: nouveauStatut });
   }
 
   const disponibles = reponses.filter((r) => r.statut === 'disponible').length;
@@ -118,6 +126,18 @@ function DetailMission({ mission, utilisateur, onFermer }) {
           <button style={styles.fermer} onClick={onFermer}>✕</button>
         </div>
 
+        {peutGererVisibilite && (
+          <div style={styles.blocVisibilite}>
+            <div>
+              <p style={styles.visibiliteTitre}>Planning visible par toute l'équipe</p>
+              <p style={styles.visibiliteDescription}>
+                {visibleTous ? "Chaque employé peut voir qui travaille et à quel poste." : "Seuls les admins voient ce planning."}
+              </p>
+            </div>
+            <Interrupteur actif={visibleTous} onClick={basculerVisibilite} />
+          </div>
+        )}
+
         <div style={styles.statsRangee}>
           <StatBloc label="Requis" valeur={mission.nb_employes_requis} couleur="var(--ink)" />
           <StatBloc label="Disponibles" valeur={disponibles} couleur="var(--emerald)" fond="var(--emerald-soft)" />
@@ -128,13 +148,13 @@ function DetailMission({ mission, utilisateur, onFermer }) {
 
         <div style={styles.onglets}>
           <button
+            style={{ ...styles.onglet, ...(onglet === 'heures' ? styles.ongletActif : {}) }}
+            onClick={() => setOnglet('heures')}
+          >Planning</button>
+          <button
             style={{ ...styles.onglet, ...(onglet === 'reponses' ? styles.ongletActif : {}) }}
             onClick={() => setOnglet('reponses')}
           >Réponses</button>
-          <button
-            style={{ ...styles.onglet, ...(onglet === 'heures' ? styles.ongletActif : {}) }}
-            onClick={() => setOnglet('heures')}
-          >Heures</button>
         </div>
 
         {onglet === 'reponses' ? (
@@ -167,6 +187,7 @@ function DetailMission({ mission, utilisateur, onFermer }) {
             reponses={reponses.filter((r) => r.statut === 'disponible')}
             peutModifier={peutModifierCreneaux}
             peutValider={peutValiderHeures}
+            onChat={ouvrirChat}
           />
         )}
       </div>
@@ -174,7 +195,15 @@ function DetailMission({ mission, utilisateur, onFermer }) {
   );
 }
 
-function SectionHeures({ mission, reponses, peutModifier, peutValider }) {
+function Interrupteur({ actif, onClick }) {
+  return (
+    <button onClick={onClick} style={{ ...styles.interrupteur, background: actif ? 'var(--emerald)' : 'var(--border)' }}>
+      <span style={{ ...styles.interrupteurRond, transform: actif ? 'translateX(18px)' : 'translateX(2px)' }} />
+    </button>
+  );
+}
+
+function SectionHeures({ mission, reponses, peutModifier, peutValider, onChat }) {
   const [creneaux, setCreneaux] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [edition, setEdition] = useState(null);
@@ -208,7 +237,10 @@ function SectionHeures({ mission, reponses, peutModifier, peutValider }) {
           <div key={r.utilisateur_id} style={styles.ligneHeure}>
             <div style={styles.reponseGauche}>
               <div style={styles.avatarPetit}>{r.prenom[0]}{r.nom[0]}</div>
-              <div style={{ fontSize: 13.5, fontWeight: 600 }}>{r.prenom} {r.nom}</div>
+              <div>
+                <div style={{ fontSize: 13.5, fontWeight: 600 }}>{r.prenom} {r.nom}</div>
+                {creneau?.poste && <div style={styles.posteTexte}>{creneau.poste}</div>}
+              </div>
             </div>
 
             {edition === r.utilisateur_id ? (
@@ -220,7 +252,7 @@ function SectionHeures({ mission, reponses, peutModifier, peutValider }) {
                 onEnregistre={() => { setEdition(null); charger(); }}
               />
             ) : creneau ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <span style={styles.heureTexte}>{creneau.heure_debut}–{creneau.heure_fin}</span>
                 <StatutValidationBadge statut={creneau.statut_validation} />
                 {peutValider && creneau.statut_validation === 'en_attente' && (
@@ -232,9 +264,13 @@ function SectionHeures({ mission, reponses, peutModifier, peutValider }) {
                 {peutModifier && (
                   <button style={styles.boutonMini} onClick={() => setEdition(r.utilisateur_id)}>Modifier</button>
                 )}
+                <button style={styles.boutonChat} title="Ouvrir la conversation" onClick={() => onChat(r.utilisateur_id)}>💬</button>
               </div>
             ) : peutModifier ? (
-              <button style={styles.boutonMini} onClick={() => setEdition(r.utilisateur_id)}>Définir un créneau</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button style={styles.boutonMini} onClick={() => setEdition(r.utilisateur_id)}>Définir un créneau</button>
+                <button style={styles.boutonChat} title="Ouvrir la conversation" onClick={() => onChat(r.utilisateur_id)}>💬</button>
+              </div>
             ) : (
               <span style={styles.texteAttente}>Non défini</span>
             )}
@@ -248,13 +284,13 @@ function SectionHeures({ mission, reponses, peutModifier, peutValider }) {
 function FormulaireCreneau({ mission, utilisateurId, initial, onAnnuler, onEnregistre }) {
   const [heureDebut, setHeureDebut] = useState(initial?.heure_debut || mission.heure_debut);
   const [heureFin, setHeureFin] = useState(initial?.heure_fin || mission.heure_fin);
+  const [poste, setPoste] = useState(initial?.poste || '');
   const [heureSup, setHeureSup] = useState(false);
-  const [motif, setMotif] = useState('');
 
   async function enregistrer() {
     await api.definirCreneau(mission.id, utilisateurId, {
-      heure_debut: heureDebut, heure_fin: heureFin,
-      est_heure_supplementaire: heureSup, motif: motif || null,
+      heure_debut: heureDebut, heure_fin: heureFin, poste: poste || null,
+      est_heure_supplementaire: heureSup,
     });
     onEnregistre();
   }
@@ -264,6 +300,7 @@ function FormulaireCreneau({ mission, utilisateurId, initial, onAnnuler, onEnreg
       <input type="time" value={heureDebut} onChange={(e) => setHeureDebut(e.target.value)} style={styles.inputHeure} />
       <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>à</span>
       <input type="time" value={heureFin} onChange={(e) => setHeureFin(e.target.value)} style={styles.inputHeure} />
+      <input type="text" value={poste} onChange={(e) => setPoste(e.target.value)} placeholder="Poste (ex: Accueil)" style={styles.inputPoste} />
       <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11.5, color: 'var(--text-secondary)' }}>
         <input type="checkbox" checked={heureSup} onChange={(e) => setHeureSup(e.target.checked)} /> H. sup.
       </label>
@@ -399,6 +436,23 @@ function formatDate(iso) {
 }
 
 const styles = {
+  blocVisibilite: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    background: 'var(--canvas)', borderRadius: 'var(--radius-sm)', padding: '10px 14px', marginBottom: 16,
+  },
+  visibiliteTitre: { fontSize: 12.5, fontWeight: 700, margin: 0 },
+  visibiliteDescription: { fontSize: 11.5, color: 'var(--text-secondary)', margin: '2px 0 0' },
+  interrupteur: {
+    width: 40, height: 22, borderRadius: 11, border: 'none', position: 'relative', flexShrink: 0, padding: 0, marginLeft: 12,
+  },
+  interrupteurRond: {
+    position: 'absolute', top: 2, width: 18, height: 18, borderRadius: '50%', background: 'white',
+    transition: 'transform 0.15s',
+  },
+  posteTexte: { fontSize: 11.5, color: 'var(--emerald)', fontWeight: 600, marginTop: 1 },
+  inputPoste: {
+    padding: '5px 8px', borderRadius: 6, border: '1.5px solid var(--border)', fontSize: 12, width: 130,
+  },
   entete: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 },
   titre: { fontSize: 26 },
   sousTitre: { color: 'var(--text-secondary)', fontSize: 14, margin: '6px 0 0' },

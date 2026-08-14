@@ -97,6 +97,16 @@ app.post('/api/missions', authentifier, requiresPermission('peut_creer_missions'
   res.status(201).json({ id: mission.id, notifies: employes.length });
 });
 
+app.patch('/api/missions/:id', authentifier, requiresPermission('peut_creer_missions'), async (req, res) => {
+  const { planning_visible_tous } = req.body;
+  if (planning_visible_tous === undefined) return res.status(400).json({ erreur: 'Rien à mettre à jour' });
+  await pool.query(
+    'UPDATE missions SET planning_visible_tous = $1 WHERE id = $2 AND entreprise_id = $3',
+    [planning_visible_tous, req.params.id, req.utilisateur.entreprise_id]
+  );
+  res.json({ ok: true });
+});
+
 app.get('/api/missions/:id/reponses', authentifier, async (req, res) => {
   const { rows } = await pool.query(
     `SELECT mr.*, u.prenom, u.nom FROM mission_reponses mr
@@ -253,15 +263,15 @@ app.get('/api/creneaux', authentifier, async (req, res) => {
 
 // Crée ou modifie le créneau d'un employé sur une mission (admin uniquement)
 app.put('/api/missions/:id/creneaux/:utilisateurId', authentifier, requiresPermission('peut_modifier_creneaux'), async (req, res) => {
-  const { heure_debut, heure_fin, est_heure_supplementaire, motif } = req.body;
+  const { heure_debut, heure_fin, poste, est_heure_supplementaire, motif } = req.body;
   const { rows: [creneau] } = await pool.query(
-    `INSERT INTO creneaux (mission_id, utilisateur_id, heure_debut, heure_fin, est_heure_supplementaire, motif, modifie_par_utilisateur_id)
-     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-    [req.params.id, req.params.utilisateurId, heure_debut, heure_fin, !!est_heure_supplementaire, motif || null, req.utilisateur.id]
+    `INSERT INTO creneaux (mission_id, utilisateur_id, heure_debut, heure_fin, poste, est_heure_supplementaire, motif, modifie_par_utilisateur_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id`,
+    [req.params.id, req.params.utilisateurId, heure_debut, heure_fin, poste || null, !!est_heure_supplementaire, motif || null, req.utilisateur.id]
   );
   await pool.query(
     `INSERT INTO notifications (utilisateur_id, type, titre, contenu, lien_id) VALUES ($1,$2,$3,$4,$5)`,
-    [req.params.utilisateurId, 'creneau_modifie', 'Votre créneau a été modifié', `Nouveaux horaires : ${heure_debut} - ${heure_fin}`, req.params.id]
+    [req.params.utilisateurId, 'creneau_modifie', 'Votre créneau a été modifié', `Nouveaux horaires : ${heure_debut} - ${heure_fin}${poste ? ` (${poste})` : ''}`, req.params.id]
   );
   res.status(201).json({ id: creneau.id });
 });

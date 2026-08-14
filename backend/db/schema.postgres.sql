@@ -62,9 +62,12 @@ CREATE TABLE IF NOT EXISTS missions (
   heure_fin TEXT NOT NULL,
   nb_employes_requis INTEGER NOT NULL,
   description TEXT,
+  planning_visible_tous BOOLEAN NOT NULL DEFAULT FALSE,
   cree_par_utilisateur_id INTEGER NOT NULL REFERENCES utilisateurs(id),
   cree_le TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+ALTER TABLE missions ADD COLUMN IF NOT EXISTS planning_visible_tous BOOLEAN NOT NULL DEFAULT FALSE;
 
 CREATE TABLE IF NOT EXISTS mission_reponses (
   id SERIAL PRIMARY KEY,
@@ -82,11 +85,14 @@ CREATE TABLE IF NOT EXISTS creneaux (
   utilisateur_id INTEGER NOT NULL REFERENCES utilisateurs(id),
   heure_debut TEXT NOT NULL,
   heure_fin TEXT NOT NULL,
+  poste TEXT,
   est_heure_supplementaire BOOLEAN DEFAULT FALSE,
   motif TEXT,
   statut_validation TEXT NOT NULL DEFAULT 'en_attente' CHECK(statut_validation IN ('en_attente','valide','annule')),
   modifie_par_utilisateur_id INTEGER
 );
+
+ALTER TABLE creneaux ADD COLUMN IF NOT EXISTS poste TEXT;
 
 CREATE TABLE IF NOT EXISTS absences (
   id SERIAL PRIMARY KEY,

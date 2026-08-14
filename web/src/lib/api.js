@@ -48,6 +48,7 @@ export const api = {
   tousLesCreneaux: () => requete('/creneaux'),
   definirCreneau: (missionId, utilisateurId, creneau) =>
     requete(`/missions/${missionId}/creneaux/${utilisateurId}`, { method: 'PUT', body: JSON.stringify(creneau) }),
+  majMission: (missionId, champs) => requete(`/missions/${missionId}`, { method: 'PATCH', body: JSON.stringify(champs) }),
   supprimerCreneau: (id) => requete(`/creneaux/${id}`, { method: 'DELETE' }),
   validerCreneau: (id, statut_validation) => requete(`/creneaux/${id}/statut`, { method: 'PATCH', body: JSON.stringify({ statut_validation }) }),
 
