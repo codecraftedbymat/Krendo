@@ -1,0 +1,174 @@
+import { useEffect, useRef, useState } from 'react';
+import { api } from '../lib/api';
+
+export default function Chat({ utilisateur }) {
+  const [conversations, setConversations] = useState([]);
+  const [conversationActive, setConversationActive] = useState(null);
+  const [chargement, setChargement] = useState(true);
+
+  useEffect(() => { charger(); }, []);
+
+  async function charger() {
+    setChargement(true);
+    try {
+      const data = await api.conversations();
+      setConversations(data);
+      if (data.length && !conversationActive) setConversationActive(data[0]);
+    } finally {
+      setChargement(false);
+    }
+  }
+
+  return (
+    <div style={styles.page}>
+      <div style={styles.colonneListe}>
+        <h1 style={styles.titre}>Messages</h1>
+        {chargement ? (
+          <p style={styles.texteAttente}>Chargement...</p>
+        ) : conversations.length === 0 ? (
+          <p style={styles.texteAttente}>Aucune conversation. Ouvrez-en une depuis une mission ou l'équipe.</p>
+        ) : (
+          <div style={styles.listeConv}>
+            {conversations.map((c) => {
+              const autre = c.utilisateur_a_id === utilisateur.id
+                ? { prenom: c.prenom_b, nom: c.nom_b }
+                : { prenom: c.prenom_a, nom: c.nom_a };
+              return (
+                <button
+                  key={c.id}
+                  style={{ ...styles.itemConv, ...(conversationActive?.id === c.id ? styles.itemConvActif : {}) }}
+                  onClick={() => setConversationActive(c)}
+                >
+                  <div style={styles.avatarPetit}>{autre.prenom[0]}{autre.nom[0]}</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 600 }}>{autre.prenom} {autre.nom}</div>
+                    <div style={styles.dernierMessage}>{c.dernier_message || 'Nouvelle conversation'}</div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div style={styles.colonneChat}>
+        {conversationActive ? (
+          <FenetreMessages
+            key={conversationActive.id}
+            conversation={conversationActive}
+            utilisateur={utilisateur}
+            onMessageEnvoye={charger}
+          />
+        ) : (
+          <div style={styles.vide}>Sélectionnez une conversation</div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function FenetreMessages({ conversation, utilisateur, onMessageEnvoye }) {
+  const [messages, setMessages] = useState([]);
+  const [texte, setTexte] = useState('');
+  const [chargement, setChargement] = useState(true);
+  const finRef = useRef(null);
+
+  const autre = conversation.utilisateur_a_id === utilisateur.id
+    ? { prenom: conversation.prenom_b, nom: conversation.nom_b }
+    : { prenom: conversation.prenom_a, nom: conversation.nom_a };
+
+  useEffect(() => {
+    api.messages(conversation.id).then(setMessages).finally(() => setChargement(false));
+  }, [conversation.id]);
+
+  useEffect(() => {
+    finRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  async function envoyer(e) {
+    e.preventDefault();
+    if (!texte.trim()) return;
+    const contenu = texte;
+    setTexte('');
+    const message = await api.envoyerMessage(conversation.id, contenu);
+    setMessages((m) => [...m, message]);
+    onMessageEnvoye();
+  }
+
+  return (
+    <>
+      <div style={styles.chatEntete}>
+        <div style={styles.avatarPetit}>{autre.prenom[0]}{autre.nom[0]}</div>
+        <div style={{ fontSize: 14.5, fontWeight: 700 }}>{autre.prenom} {autre.nom}</div>
+      </div>
+
+      <div style={styles.zoneMessages}>
+        {chargement ? (
+          <p style={styles.texteAttente}>Chargement...</p>
+        ) : (
+          messages.map((m) => {
+            const estMoi = m.expediteur_utilisateur_id === utilisateur.id;
+            return (
+              <div key={m.id} style={{ display: 'flex', justifyContent: estMoi ? 'flex-end' : 'flex-start' }}>
+                <div style={{ ...styles.bulle, ...(estMoi ? styles.bulleMoi : styles.bulleAutre) }}>
+                  {m.contenu}
+                </div>
+              </div>
+            );
+          })
+        )}
+        <div ref={finRef} />
+      </div>
+
+      <form onSubmit={envoyer} style={styles.zoneSaisie}>
+        <input
+          style={styles.inputMessage}
+          value={texte}
+          onChange={(e) => setTexte(e.target.value)}
+          placeholder="Écrire un message..."
+        />
+        <button type="submit" style={styles.boutonEnvoyer}>Envoyer</button>
+      </form>
+    </>
+  );
+}
+
+const styles = {
+  page: { display: 'flex', height: 'calc(100vh - 64px)', gap: 20, margin: '-32px -40px', padding: '32px 40px' },
+  colonneListe: { width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column' },
+  titre: { fontSize: 22, marginBottom: 16 },
+  texteAttente: { color: 'var(--text-secondary)', fontSize: 13.5 },
+  listeConv: { display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' },
+  itemConv: {
+    display: 'flex', alignItems: 'center', gap: 10, padding: '10px 10px',
+    borderRadius: 'var(--radius-sm)', background: 'transparent', border: 'none', textAlign: 'left',
+  },
+  itemConvActif: { background: 'var(--card)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' },
+  avatarPetit: {
+    width: 32, height: 32, borderRadius: '50%', background: 'var(--emerald-soft)', color: 'var(--emerald)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0,
+  },
+  dernierMessage: {
+    fontSize: 12, color: 'var(--text-secondary)', whiteSpace: 'nowrap',
+    overflow: 'hidden', textOverflow: 'ellipsis',
+  },
+  colonneChat: {
+    flex: 1, background: 'var(--card)', borderRadius: 'var(--radius-lg)',
+    border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', overflow: 'hidden',
+  },
+  vide: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 14 },
+  chatEntete: { display: 'flex', alignItems: 'center', gap: 10, padding: '14px 20px', borderBottom: '1px solid var(--border)' },
+  zoneMessages: { flex: 1, overflowY: 'auto', padding: 20, display: 'flex', flexDirection: 'column', gap: 10 },
+  bulle: { maxWidth: '65%', padding: '9px 13px', borderRadius: 14, fontSize: 13.5, lineHeight: 1.4 },
+  bulleMoi: { background: 'var(--emerald)', color: 'white', borderBottomRightRadius: 4 },
+  bulleAutre: { background: 'var(--canvas)', color: 'var(--text-primary)', borderBottomLeftRadius: 4 },
+  zoneSaisie: { display: 'flex', gap: 8, padding: 16, borderTop: '1px solid var(--border)' },
+  inputMessage: {
+    flex: 1, padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1.5px solid var(--border)',
+    fontSize: 13.5, outline: 'none',
+  },
+  boutonEnvoyer: {
+    background: 'var(--ink)', color: 'white', border: 'none', borderRadius: 'var(--radius-sm)',
+    padding: '10px 18px', fontWeight: 700, fontSize: 13,
+  },
+};

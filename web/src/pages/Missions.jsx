@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
 
-export default function Missions() {
+export default function Missions({ utilisateur }) {
   const [missions, setMissions] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [missionOuverte, setMissionOuverte] = useState(null);
   const [formulaireOuvert, setFormulaireOuvert] = useState(false);
+
+  const peutCreer = utilisateur.permissions.peut_creer_missions || utilisateur.permissions.peut_voir_tout;
 
   useEffect(() => { chargerMissions(); }, []);
 
@@ -26,9 +29,11 @@ export default function Missions() {
           <h1 style={styles.titre}>Missions</h1>
           <p style={styles.sousTitre}>Créez une mission et suivez les disponibilités de votre équipe.</p>
         </div>
-        <button style={styles.boutonPrincipal} onClick={() => setFormulaireOuvert(true)}>
-          + Nouvelle mission
-        </button>
+        {peutCreer && (
+          <button style={styles.boutonPrincipal} onClick={() => setFormulaireOuvert(true)}>
+            + Nouvelle mission
+          </button>
+        )}
       </div>
 
       {chargement ? (
@@ -49,7 +54,7 @@ export default function Missions() {
       )}
 
       {missionOuverte && (
-        <DetailMission mission={missionOuverte} onFermer={() => setMissionOuverte(null)} />
+        <DetailMission mission={missionOuverte} utilisateur={utilisateur} onFermer={() => setMissionOuverte(null)} />
       )}
 
       {formulaireOuvert && (
@@ -77,13 +82,23 @@ function CarteMission({ mission, onOuvrir }) {
   );
 }
 
-function DetailMission({ mission, onFermer }) {
+function DetailMission({ mission, utilisateur, onFermer }) {
+  const [onglet, setOnglet] = useState('reponses');
   const [reponses, setReponses] = useState([]);
   const [chargement, setChargement] = useState(true);
+  const navigate = useNavigate();
+
+  const peutModifierCreneaux = utilisateur.permissions.peut_modifier_creneaux || utilisateur.permissions.peut_voir_tout;
+  const peutValiderHeures = utilisateur.permissions.peut_valider_heures || utilisateur.permissions.peut_voir_tout;
 
   useEffect(() => {
     api.reponsesMission(mission.id).then(setReponses).finally(() => setChargement(false));
   }, [mission.id]);
+
+  async function ouvrirChat(utilisateurId) {
+    const conv = await api.ouvrirConversation(utilisateurId, mission.id);
+    navigate(`/messages?conv=${conv.id}`);
+  }
 
   const disponibles = reponses.filter((r) => r.statut === 'disponible').length;
   const indisponibles = reponses.filter((r) => r.statut === 'indisponible').length;
@@ -111,30 +126,160 @@ function DetailMission({ mission, onFermer }) {
 
         <BarreSegmentee disponibles={disponibles} indisponibles={indisponibles} enAttente={enAttente} />
 
-        <p style={styles.sectionLabel}>Réponses des employés</p>
-        {chargement ? (
-          <p style={styles.texteAttente}>Chargement...</p>
-        ) : (
-          <div style={styles.listeReponses}>
-            {reponses.map((r) => (
-              <div key={r.id} style={styles.ligneReponse}>
-                <div style={styles.reponseGauche}>
-                  <div style={styles.avatarPetit}>{r.prenom[0]}{r.nom[0]}</div>
-                  <div>
-                    <div style={{ fontSize: 13.5, fontWeight: 600 }}>{r.prenom} {r.nom}</div>
-                    {r.commentaire && (
-                      <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Motif : {r.commentaire}</div>
-                    )}
+        <div style={styles.onglets}>
+          <button
+            style={{ ...styles.onglet, ...(onglet === 'reponses' ? styles.ongletActif : {}) }}
+            onClick={() => setOnglet('reponses')}
+          >Réponses</button>
+          <button
+            style={{ ...styles.onglet, ...(onglet === 'heures' ? styles.ongletActif : {}) }}
+            onClick={() => setOnglet('heures')}
+          >Heures</button>
+        </div>
+
+        {onglet === 'reponses' ? (
+          chargement ? (
+            <p style={styles.texteAttente}>Chargement...</p>
+          ) : (
+            <div style={styles.listeReponses}>
+              {reponses.map((r) => (
+                <div key={r.id} style={styles.ligneReponse}>
+                  <div style={styles.reponseGauche}>
+                    <div style={styles.avatarPetit}>{r.prenom[0]}{r.nom[0]}</div>
+                    <div>
+                      <div style={{ fontSize: 13.5, fontWeight: 600 }}>{r.prenom} {r.nom}</div>
+                      {r.commentaire && (
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Motif : {r.commentaire}</div>
+                      )}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <StatutBadge statut={r.statut} />
+                    <button style={styles.boutonChat} title="Ouvrir la conversation" onClick={() => ouvrirChat(r.utilisateur_id)}>💬</button>
                   </div>
                 </div>
-                <StatutBadge statut={r.statut} />
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )
+        ) : (
+          <SectionHeures
+            mission={mission}
+            reponses={reponses.filter((r) => r.statut === 'disponible')}
+            peutModifier={peutModifierCreneaux}
+            peutValider={peutValiderHeures}
+          />
         )}
       </div>
     </div>
   );
+}
+
+function SectionHeures({ mission, reponses, peutModifier, peutValider }) {
+  const [creneaux, setCreneaux] = useState([]);
+  const [chargement, setChargement] = useState(true);
+  const [edition, setEdition] = useState(null);
+
+  useEffect(() => { charger(); }, [mission.id]);
+
+  async function charger() {
+    setChargement(true);
+    try {
+      setCreneaux(await api.creneauxMission(mission.id));
+    } finally {
+      setChargement(false);
+    }
+  }
+
+  function creneauDe(utilisateurId) {
+    return creneaux.find((c) => c.utilisateur_id === utilisateurId && !c.est_heure_supplementaire);
+  }
+
+  if (chargement) return <p style={styles.texteAttente}>Chargement...</p>;
+
+  if (reponses.length === 0) {
+    return <p style={styles.texteAttente}>Aucun employé disponible pour l'instant.</p>;
+  }
+
+  return (
+    <div style={styles.listeReponses}>
+      {reponses.map((r) => {
+        const creneau = creneauDe(r.utilisateur_id);
+        return (
+          <div key={r.utilisateur_id} style={styles.ligneHeure}>
+            <div style={styles.reponseGauche}>
+              <div style={styles.avatarPetit}>{r.prenom[0]}{r.nom[0]}</div>
+              <div style={{ fontSize: 13.5, fontWeight: 600 }}>{r.prenom} {r.nom}</div>
+            </div>
+
+            {edition === r.utilisateur_id ? (
+              <FormulaireCreneau
+                mission={mission}
+                utilisateurId={r.utilisateur_id}
+                initial={creneau}
+                onAnnuler={() => setEdition(null)}
+                onEnregistre={() => { setEdition(null); charger(); }}
+              />
+            ) : creneau ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={styles.heureTexte}>{creneau.heure_debut}–{creneau.heure_fin}</span>
+                <StatutValidationBadge statut={creneau.statut_validation} />
+                {peutValider && creneau.statut_validation === 'en_attente' && (
+                  <>
+                    <button style={styles.boutonMini} onClick={() => api.validerCreneau(creneau.id, 'valide').then(charger)}>Valider</button>
+                    <button style={styles.boutonMiniAnnuler} onClick={() => api.validerCreneau(creneau.id, 'annule').then(charger)}>Annuler</button>
+                  </>
+                )}
+                {peutModifier && (
+                  <button style={styles.boutonMini} onClick={() => setEdition(r.utilisateur_id)}>Modifier</button>
+                )}
+              </div>
+            ) : peutModifier ? (
+              <button style={styles.boutonMini} onClick={() => setEdition(r.utilisateur_id)}>Définir un créneau</button>
+            ) : (
+              <span style={styles.texteAttente}>Non défini</span>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function FormulaireCreneau({ mission, utilisateurId, initial, onAnnuler, onEnregistre }) {
+  const [heureDebut, setHeureDebut] = useState(initial?.heure_debut || mission.heure_debut);
+  const [heureFin, setHeureFin] = useState(initial?.heure_fin || mission.heure_fin);
+  const [heureSup, setHeureSup] = useState(false);
+  const [motif, setMotif] = useState('');
+
+  async function enregistrer() {
+    await api.definirCreneau(mission.id, utilisateurId, {
+      heure_debut: heureDebut, heure_fin: heureFin,
+      est_heure_supplementaire: heureSup, motif: motif || null,
+    });
+    onEnregistre();
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+      <input type="time" value={heureDebut} onChange={(e) => setHeureDebut(e.target.value)} style={styles.inputHeure} />
+      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>à</span>
+      <input type="time" value={heureFin} onChange={(e) => setHeureFin(e.target.value)} style={styles.inputHeure} />
+      <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11.5, color: 'var(--text-secondary)' }}>
+        <input type="checkbox" checked={heureSup} onChange={(e) => setHeureSup(e.target.checked)} /> H. sup.
+      </label>
+      <button style={styles.boutonMini} onClick={enregistrer}>OK</button>
+      <button style={styles.boutonMiniAnnuler} onClick={onAnnuler}>✕</button>
+    </div>
+  );
+}
+
+function StatutValidationBadge({ statut }) {
+  const config = {
+    en_attente: { texte: 'À valider', fond: 'var(--amber-soft)', couleur: 'var(--amber)' },
+    valide: { texte: 'Validé', fond: 'var(--emerald-soft)', couleur: 'var(--emerald)' },
+    annule: { texte: 'Annulé', fond: 'var(--red-soft)', couleur: 'var(--red)' },
+  }[statut];
+  return <span style={{ ...styles.badge, background: config.fond, color: config.couleur }}>{config.texte}</span>;
 }
 
 function StatBloc({ label, valeur, couleur, fond }) {
@@ -309,6 +454,32 @@ const styles = {
     display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, fontWeight: 700,
   },
   badge: { fontSize: 11.5, fontWeight: 700, padding: '4px 10px', borderRadius: 6, whiteSpace: 'nowrap' },
+  boutonChat: {
+    background: 'var(--canvas)', border: 'none', borderRadius: 7, width: 28, height: 28,
+    fontSize: 13, display: 'flex', alignItems: 'center', justifyContent: 'center',
+  },
+  onglets: { display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--border)' },
+  onglet: {
+    background: 'none', border: 'none', padding: '8px 4px', marginRight: 16,
+    fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', borderBottom: '2px solid transparent',
+  },
+  ongletActif: { color: 'var(--ink)', borderBottomColor: 'var(--emerald)' },
+  ligneHeure: {
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '10px 12px', background: 'var(--canvas)', borderRadius: 'var(--radius-sm)', flexWrap: 'wrap', gap: 8,
+  },
+  heureTexte: { fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600 },
+  inputHeure: {
+    padding: '5px 7px', borderRadius: 6, border: '1.5px solid var(--border)', fontSize: 12.5, width: 84,
+  },
+  boutonMini: {
+    background: 'var(--ink)', color: 'white', border: 'none', borderRadius: 6,
+    padding: '5px 10px', fontSize: 11.5, fontWeight: 700,
+  },
+  boutonMiniAnnuler: {
+    background: 'var(--canvas)', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 6,
+    padding: '5px 10px', fontSize: 11.5, fontWeight: 700,
+  },
   formGrille: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 },
   input: {
     padding: '10px 12px', borderRadius: 'var(--radius-sm)', border: '1.5px solid var(--border)',

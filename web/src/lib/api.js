@@ -35,6 +35,21 @@ export const api = {
 
   utilisateurs: () => requete('/utilisateurs'),
   creerUtilisateur: (u) => requete('/utilisateurs', { method: 'POST', body: JSON.stringify(u) }),
+  majUtilisateur: (id, champs) => requete(`/utilisateurs/${id}`, { method: 'PATCH', body: JSON.stringify(champs) }),
+  roles: () => requete('/roles'),
+
+  creneauxMission: (missionId) => requete(`/missions/${missionId}/creneaux`),
+  definirCreneau: (missionId, utilisateurId, creneau) =>
+    requete(`/missions/${missionId}/creneaux/${utilisateurId}`, { method: 'PUT', body: JSON.stringify(creneau) }),
+  supprimerCreneau: (id) => requete(`/creneaux/${id}`, { method: 'DELETE' }),
+  validerCreneau: (id, statut_validation) => requete(`/creneaux/${id}/statut`, { method: 'PATCH', body: JSON.stringify({ statut_validation }) }),
+
+  conversations: () => requete('/conversations'),
+  ouvrirConversation: (utilisateur_id, mission_id) =>
+    requete('/conversations', { method: 'POST', body: JSON.stringify({ utilisateur_id, mission_id }) }),
+  messages: (conversationId) => requete(`/conversations/${conversationId}/messages`),
+  envoyerMessage: (conversationId, contenu) =>
+    requete(`/conversations/${conversationId}/messages`, { method: 'POST', body: JSON.stringify({ contenu }) }),
 };
 
 export function sauvegarderSession(token, utilisateur) {

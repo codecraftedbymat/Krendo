@@ -4,6 +4,7 @@ import Connexion from './pages/Connexion';
 import Missions from './pages/Missions';
 import Absences from './pages/Absences';
 import Equipe from './pages/Equipe';
+import Chat from './pages/Chat';
 import Layout from './components/Layout';
 import { chargerSession } from './lib/api';
 
@@ -18,9 +19,10 @@ export default function App() {
     <BrowserRouter>
       <Layout utilisateur={session.utilisateur}>
         <Routes>
-          <Route path="/" element={<Missions />} />
+          <Route path="/" element={<Missions utilisateur={session.utilisateur} />} />
           <Route path="/absences" element={<Absences />} />
-          <Route path="/equipe" element={<Equipe />} />
+          <Route path="/messages" element={<Chat utilisateur={session.utilisateur} />} />
+          <Route path="/equipe" element={<Equipe utilisateur={session.utilisateur} />} />
         </Routes>
       </Layout>
     </BrowserRouter>
