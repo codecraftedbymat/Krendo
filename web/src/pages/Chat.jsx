@@ -33,6 +33,7 @@ export default function Chat({ utilisateur }) {
               const autre = c.utilisateur_a_id === utilisateur.id
                 ? { prenom: c.prenom_b, nom: c.nom_b }
                 : { prenom: c.prenom_a, nom: c.nom_a };
+              const nonLu = c.dernier_message_expediteur_id && c.dernier_message_expediteur_id !== utilisateur.id && !c.dernier_message_lu;
               return (
                 <button
                   key={c.id}
@@ -44,6 +45,7 @@ export default function Chat({ utilisateur }) {
                     <div style={{ fontSize: 13.5, fontWeight: 600 }}>{autre.prenom} {autre.nom}</div>
                     <div style={styles.dernierMessage}>{c.dernier_message || 'Nouvelle conversation'}</div>
                   </div>
+                  {nonLu && <div style={styles.pointNonLu} />}
                 </button>
               );
             })}
@@ -83,6 +85,14 @@ function FenetreMessages({ conversation, utilisateur, onMessageEnvoye }) {
 
   useEffect(() => {
     api.messages(conversation.id).then(setMessages).finally(() => setChargement(false));
+  }, [conversation.id]);
+
+  // Rafraîchit toutes les 4s pour voir passer "Envoyé" -> "Lu" quand l'autre personne consulte
+  useEffect(() => {
+    const intervalle = setInterval(() => {
+      api.messages(conversation.id).then(setMessages).catch(() => {});
+    }, 4000);
+    return () => clearInterval(intervalle);
   }, [conversation.id]);
 
   useEffect(() => {
@@ -138,13 +148,16 @@ function FenetreMessages({ conversation, utilisateur, onMessageEnvoye }) {
           messages.map((m) => {
             const estMoi = m.expediteur_utilisateur_id === utilisateur.id;
             return (
-              <div key={m.id} style={{ display: 'flex', justifyContent: estMoi ? 'flex-end' : 'flex-start' }}>
+              <div key={m.id} style={{ display: 'flex', flexDirection: 'column', alignItems: estMoi ? 'flex-end' : 'flex-start' }}>
                 <div style={{ ...styles.bulle, ...(estMoi ? styles.bulleMoi : styles.bulleAutre) }}>
                   {m.piece_jointe_data && (
                     <PieceJointe nom={m.piece_jointe_nom} type={m.piece_jointe_type} data={m.piece_jointe_data} estMoi={estMoi} />
                   )}
                   {m.contenu && <div style={m.piece_jointe_data ? { marginTop: 6 } : undefined}>{m.contenu}</div>}
                 </div>
+                {estMoi && (
+                  <span style={styles.statutMessage}>{m.lu ? 'Lu ✓✓' : 'Envoyé ✓'}</span>
+                )}
               </div>
             );
           })
@@ -202,6 +215,7 @@ const styles = {
     borderRadius: 'var(--radius-sm)', background: 'transparent', border: 'none', textAlign: 'left',
   },
   itemConvActif: { background: 'var(--card)', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' },
+  pointNonLu: { width: 8, height: 8, borderRadius: '50%', background: 'var(--emerald)', flexShrink: 0 },
   avatarPetit: {
     width: 32, height: 32, borderRadius: '50%', background: 'var(--emerald-soft)', color: 'var(--emerald)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0,
@@ -246,4 +260,5 @@ const styles = {
   },
   imageJointe: { maxWidth: 220, maxHeight: 220, borderRadius: 10, display: 'block', cursor: 'pointer' },
   lienFichier: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, textDecoration: 'underline' },
+  statutMessage: { fontSize: 10.5, color: 'var(--text-muted)', marginTop: 3, marginRight: 2 },
 };

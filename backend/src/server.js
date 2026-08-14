@@ -286,7 +286,9 @@ app.get('/api/conversations', authentifier, async (req, res) => {
        ua.prenom as prenom_a, ua.nom as nom_a,
        ub.prenom as prenom_b, ub.nom as nom_b,
        (SELECT contenu FROM messages m WHERE m.conversation_id = c.id ORDER BY m.envoye_le DESC LIMIT 1) as dernier_message,
-       (SELECT envoye_le FROM messages m WHERE m.conversation_id = c.id ORDER BY m.envoye_le DESC LIMIT 1) as dernier_message_le
+       (SELECT envoye_le FROM messages m WHERE m.conversation_id = c.id ORDER BY m.envoye_le DESC LIMIT 1) as dernier_message_le,
+       (SELECT expediteur_utilisateur_id FROM messages m WHERE m.conversation_id = c.id ORDER BY m.envoye_le DESC LIMIT 1) as dernier_message_expediteur_id,
+       (SELECT lu FROM messages m WHERE m.conversation_id = c.id ORDER BY m.envoye_le DESC LIMIT 1) as dernier_message_lu
      FROM conversations c
      JOIN utilisateurs ua ON c.utilisateur_a_id = ua.id
      JOIN utilisateurs ub ON c.utilisateur_b_id = ub.id
@@ -317,6 +319,13 @@ app.post('/api/conversations', authentifier, async (req, res) => {
 });
 
 app.get('/api/conversations/:id/messages', authentifier, async (req, res) => {
+  // Marque comme lus tous les messages de l'autre participant dès que je consulte la conversation
+  await pool.query(
+    `UPDATE messages SET lu = TRUE
+     WHERE conversation_id = $1 AND expediteur_utilisateur_id != $2 AND lu = FALSE`,
+    [req.params.id, req.utilisateur.id]
+  );
+
   const { rows } = await pool.query(
     `SELECT m.*, u.prenom, u.nom FROM messages m
      JOIN utilisateurs u ON m.expediteur_utilisateur_id = u.id
