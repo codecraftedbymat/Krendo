@@ -5,6 +5,7 @@ export default function Chat({ utilisateur }) {
   const [conversations, setConversations] = useState([]);
   const [conversationActive, setConversationActive] = useState(null);
   const [chargement, setChargement] = useState(true);
+  const [nouvelleConvOuverte, setNouvelleConvOuverte] = useState(false);
 
   useEffect(() => { charger(); }, []);
 
@@ -19,14 +20,27 @@ export default function Chat({ utilisateur }) {
     }
   }
 
+  async function demarrerConversation(autreUtilisateurId) {
+    const conv = await api.ouvrirConversation(autreUtilisateurId);
+    setNouvelleConvOuverte(false);
+    await charger();
+    // On retrouve la conversation avec ses infos complètes (prénom/nom) après rechargement
+    const data = await api.conversations();
+    const trouvee = data.find((c) => c.id === conv.id);
+    setConversationActive(trouvee || conv);
+  }
+
   return (
     <div style={styles.page}>
       <div style={styles.colonneListe}>
-        <h1 style={styles.titre}>Messages</h1>
+        <div style={styles.listeEntete}>
+          <h1 style={styles.titre}>Messages</h1>
+          <button style={styles.boutonNouveau} title="Nouvelle conversation" onClick={() => setNouvelleConvOuverte(true)}>+</button>
+        </div>
         {chargement ? (
           <p style={styles.texteAttente}>Chargement...</p>
         ) : conversations.length === 0 ? (
-          <p style={styles.texteAttente}>Aucune conversation. Ouvrez-en une depuis une mission ou l'équipe.</p>
+          <p style={styles.texteAttente}>Aucune conversation. Cliquez sur + pour en démarrer une.</p>
         ) : (
           <div style={styles.listeConv}>
             {conversations.map((c) => {
@@ -63,6 +77,78 @@ export default function Chat({ utilisateur }) {
           />
         ) : (
           <div style={styles.vide}>Sélectionnez une conversation</div>
+        )}
+      </div>
+
+      {nouvelleConvOuverte && (
+        <NouvelleConversation
+          utilisateur={utilisateur}
+          conversationsExistantes={conversations}
+          onFermer={() => setNouvelleConvOuverte(false)}
+          onChoisir={demarrerConversation}
+        />
+      )}
+    </div>
+  );
+}
+
+function NouvelleConversation({ utilisateur, conversationsExistantes, onFermer, onChoisir }) {
+  const [membres, setMembres] = useState([]);
+  const [chargement, setChargement] = useState(true);
+  const [recherche, setRecherche] = useState('');
+
+  useEffect(() => {
+    api.utilisateurs()
+      .then((data) => setMembres(data.filter((u) => u.id !== utilisateur.id && u.actif)))
+      .finally(() => setChargement(false));
+  }, []);
+
+  function conversationExistanteAvec(userId) {
+    return conversationsExistantes.find(
+      (c) => c.utilisateur_a_id === userId || c.utilisateur_b_id === userId
+    );
+  }
+
+  const filtres = membres.filter((m) =>
+    `${m.prenom} ${m.nom}`.toLowerCase().includes(recherche.toLowerCase())
+  );
+
+  return (
+    <div style={styles.overlay} onClick={onFermer}>
+      <div style={styles.panneauNouveau} onClick={(e) => e.stopPropagation()}>
+        <div style={styles.panneauEntete}>
+          <h2 style={styles.panneauTitre}>Nouvelle conversation</h2>
+          <button style={styles.fermer} onClick={onFermer}>✕</button>
+        </div>
+
+        <input
+          autoFocus
+          placeholder="Rechercher un membre..."
+          value={recherche}
+          onChange={(e) => setRecherche(e.target.value)}
+          style={styles.inputRecherche}
+        />
+
+        {chargement ? (
+          <p style={styles.texteAttente}>Chargement...</p>
+        ) : filtres.length === 0 ? (
+          <p style={styles.texteAttente}>Aucun membre trouvé.</p>
+        ) : (
+          <div style={styles.listeMembres}>
+            {filtres.map((m) => {
+              const existe = conversationExistanteAvec(m.id);
+              return (
+                <button key={m.id} style={styles.itemMembre} onClick={() => onChoisir(m.id)}>
+                  <div style={styles.avatarPetit}>{m.prenom[0]}{m.nom[0]}</div>
+                  <div style={{ flex: 1, textAlign: 'left' }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 600 }}>{m.prenom} {m.nom}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>{m.role}</div>
+                  </div>
+                  {existe && <span style={styles.etiquetteExiste}>Reprendre</span>}
+                </button>
+              );
+            })}
+          </div>
         )}
       </div>
     </div>
@@ -207,7 +293,12 @@ function PieceJointe({ nom, type, data, estMoi }) {
 const styles = {
   page: { display: 'flex', height: 'calc(100vh - 64px)', gap: 20, margin: '-32px -40px', padding: '32px 40px' },
   colonneListe: { width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column' },
-  titre: { fontSize: 22, marginBottom: 16 },
+  listeEntete: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+  boutonNouveau: {
+    width: 28, height: 28, borderRadius: 8, background: 'var(--ink)', color: 'white',
+    border: 'none', fontSize: 16, fontWeight: 700, lineHeight: 1,
+  },
+  titre: { fontSize: 22, margin: 0 },
   texteAttente: { color: 'var(--text-secondary)', fontSize: 13.5 },
   listeConv: { display: 'flex', flexDirection: 'column', gap: 4, overflowY: 'auto' },
   itemConv: {
@@ -261,4 +352,25 @@ const styles = {
   imageJointe: { maxWidth: 220, maxHeight: 220, borderRadius: 10, display: 'block', cursor: 'pointer' },
   lienFichier: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, textDecoration: 'underline' },
   statutMessage: { fontSize: 10.5, color: 'var(--text-muted)', marginTop: 3, marginRight: 2 },
+  overlay: {
+    position: 'fixed', inset: 0, background: 'rgba(28,37,54,0.45)',
+    display: 'flex', justifyContent: 'flex-end', zIndex: 50,
+  },
+  panneauNouveau: {
+    width: 380, maxWidth: '100%', background: 'var(--card)', height: '100%',
+    padding: 28, overflowY: 'auto', display: 'flex', flexDirection: 'column',
+  },
+  panneauEntete: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
+  panneauTitre: { fontSize: 18 },
+  fermer: { background: 'var(--canvas)', border: 'none', borderRadius: 8, width: 30, height: 30, fontSize: 14 },
+  inputRecherche: {
+    padding: '9px 12px', borderRadius: 'var(--radius-sm)', border: '1.5px solid var(--border)',
+    fontSize: 13, outline: 'none', marginBottom: 16, fontFamily: 'var(--font-body)',
+  },
+  listeMembres: { display: 'flex', flexDirection: 'column', gap: 4 },
+  itemMembre: {
+    display: 'flex', alignItems: 'center', gap: 10, padding: '9px 8px',
+    background: 'transparent', border: 'none', borderRadius: 'var(--radius-sm)', textAlign: 'left',
+  },
+  etiquetteExiste: { fontSize: 10.5, color: 'var(--text-muted)', fontWeight: 600 },
 };
