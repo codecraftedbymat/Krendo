@@ -237,6 +237,20 @@ app.get('/api/missions/:id/creneaux', authentifier, async (req, res) => {
   res.json(rows);
 });
 
+// Tous les créneaux de l'entreprise, toutes missions confondues (vue globale pour la page Heures)
+app.get('/api/creneaux', authentifier, async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT c.*, u.prenom, u.nom, m.titre as mission_titre, m.date_debut as mission_date
+     FROM creneaux c
+     JOIN utilisateurs u ON c.utilisateur_id = u.id
+     JOIN missions m ON c.mission_id = m.id
+     WHERE m.entreprise_id = $1
+     ORDER BY m.date_debut DESC, c.est_heure_supplementaire, u.prenom`,
+    [req.utilisateur.entreprise_id]
+  );
+  res.json(rows);
+});
+
 // Crée ou modifie le créneau d'un employé sur une mission (admin uniquement)
 app.put('/api/missions/:id/creneaux/:utilisateurId', authentifier, requiresPermission('peut_modifier_creneaux'), async (req, res) => {
   const { heure_debut, heure_fin, est_heure_supplementaire, motif } = req.body;

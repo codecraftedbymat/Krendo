@@ -40,6 +40,7 @@ export const api = {
   roles: () => requete('/roles'),
 
   creneauxMission: (missionId) => requete(`/missions/${missionId}/creneaux`),
+  tousLesCreneaux: () => requete('/creneaux'),
   definirCreneau: (missionId, utilisateurId, creneau) =>
     requete(`/missions/${missionId}/creneaux/${utilisateurId}`, { method: 'PUT', body: JSON.stringify(creneau) }),
   supprimerCreneau: (id) => requete(`/creneaux/${id}`, { method: 'DELETE' }),

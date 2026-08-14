@@ -3,6 +3,8 @@ import { effacerSession } from '../lib/api';
 
 const liens = [
   { to: '/', label: 'Missions', icon: '📋' },
+  { to: '/planning', label: 'Planning', icon: '📅' },
+  { to: '/heures', label: 'Heures', icon: '⏱️' },
   { to: '/absences', label: 'Absences', icon: '🗓️' },
   { to: '/messages', label: 'Messages', icon: '💬' },
   { to: '/equipe', label: 'Équipe', icon: '👥' },
