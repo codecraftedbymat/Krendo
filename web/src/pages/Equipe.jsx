@@ -27,6 +27,18 @@ export default function Equipe({ utilisateur }) {
     charger();
   }
 
+  async function supprimer(u) {
+    const confirmation = window.confirm(
+      `Supprimer définitivement ${u.prenom} ${u.nom} ?\n\nSi cette personne a déjà des missions, messages ou heures enregistrées, son compte sera désactivé au lieu d'être supprimé, pour ne pas perdre l'historique.`
+    );
+    if (!confirmation) return;
+    const resultat = await api.supprimerUtilisateur(u.id);
+    if (resultat.desactive) {
+      alert(resultat.message);
+    }
+    charger();
+  }
+
   return (
     <div>
       <div style={styles.entete}>
@@ -55,9 +67,12 @@ export default function Equipe({ utilisateur }) {
               <span style={styles.badgeRole}>{u.role}</span>
               {!u.actif && <span style={styles.badgeInactif}>Désactivé</span>}
               {peutGererComptes && u.id !== utilisateur.id && (
-                <button style={styles.boutonToggle} onClick={() => basculerActif(u)}>
-                  {u.actif ? 'Désactiver' : 'Réactiver'}
-                </button>
+                <>
+                  <button style={styles.boutonToggle} onClick={() => basculerActif(u)}>
+                    {u.actif ? 'Désactiver' : 'Réactiver'}
+                  </button>
+                  <button style={styles.boutonSupprimer} onClick={() => supprimer(u)}>Supprimer</button>
+                </>
               )}
             </div>
           ))}
@@ -176,6 +191,10 @@ const styles = {
   boutonToggle: {
     background: 'var(--canvas)', border: 'none', borderRadius: 7, padding: '6px 11px',
     fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap',
+  },
+  boutonSupprimer: {
+    background: 'var(--red-soft)', border: 'none', borderRadius: 7, padding: '6px 11px',
+    fontSize: 12, fontWeight: 700, color: 'var(--red)', whiteSpace: 'nowrap',
   },
   overlay: {
     position: 'fixed', inset: 0, background: 'rgba(28,37,54,0.45)',

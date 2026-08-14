@@ -181,6 +181,44 @@ app.patch('/api/utilisateurs/:id', authentifier, requiresPermission('peut_gerer_
   res.json({ ok: true });
 });
 
+app.delete('/api/utilisateurs/:id', authentifier, requiresPermission('peut_gerer_comptes'), async (req, res) => {
+  const idACible = Number(req.params.id);
+
+  if (idACible === req.utilisateur.id) {
+    return res.status(400).json({ erreur: 'Vous ne pouvez pas supprimer votre propre compte.' });
+  }
+
+  const { rows: [cible] } = await pool.query(
+    'SELECT u.*, r.nom as role_nom FROM utilisateurs u JOIN roles r ON u.role_id = r.id WHERE u.id = $1 AND u.entreprise_id = $2',
+    [idACible, req.utilisateur.entreprise_id]
+  );
+  if (!cible) return res.status(404).json({ erreur: 'Utilisateur introuvable.' });
+
+  if (cible.role_nom === 'Super admin') {
+    const { rows: [{ count }] } = await pool.query(
+      `SELECT COUNT(*) FROM utilisateurs u JOIN roles r ON u.role_id = r.id
+       WHERE u.entreprise_id = $1 AND r.nom = 'Super admin' AND u.actif = TRUE`,
+      [req.utilisateur.entreprise_id]
+    );
+    if (Number(count) <= 1) {
+      return res.status(400).json({ erreur: 'Impossible de supprimer le dernier super admin de l\'entreprise.' });
+    }
+  }
+
+  try {
+    await pool.query('DELETE FROM utilisateurs WHERE id = $1 AND entreprise_id = $2', [idACible, req.utilisateur.entreprise_id]);
+    res.json({ ok: true, supprime: true });
+  } catch (err) {
+    if (err.code === '23503') {
+      // Contrainte de clé étrangère : cette personne a déjà des missions/messages/heures liés à elle.
+      // On désactive son compte plutôt que de perdre l'historique.
+      await pool.query('UPDATE utilisateurs SET actif = FALSE WHERE id = $1 AND entreprise_id = $2', [idACible, req.utilisateur.entreprise_id]);
+      return res.json({ ok: true, supprime: false, desactive: true, message: "Ce compte a un historique (missions, messages ou heures) et ne peut pas être supprimé sans perdre ces données. Il a été désactivé à la place." });
+    }
+    throw err;
+  }
+});
+
 // ============ RÔLES (pour peupler le formulaire de création de compte) ============
 app.get('/api/roles', authentifier, async (req, res) => {
   const { rows } = await pool.query('SELECT id, nom FROM roles ORDER BY id');

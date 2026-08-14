@@ -36,6 +36,7 @@ export const api = {
   utilisateurs: () => requete('/utilisateurs'),
   creerUtilisateur: (u) => requete('/utilisateurs', { method: 'POST', body: JSON.stringify(u) }),
   majUtilisateur: (id, champs) => requete(`/utilisateurs/${id}`, { method: 'PATCH', body: JSON.stringify(champs) }),
+  supprimerUtilisateur: (id) => requete(`/utilisateurs/${id}`, { method: 'DELETE' }),
   roles: () => requete('/roles'),
 
   creneauxMission: (missionId) => requete(`/missions/${missionId}/creneaux`),
