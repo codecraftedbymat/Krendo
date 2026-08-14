@@ -492,6 +492,7 @@ const styles = {
   visibiliteDescription: { fontSize: 11.5, color: 'var(--text-secondary)', margin: '2px 0 0' },
   interrupteur: {
     width: 40, height: 22, borderRadius: 11, border: 'none', position: 'relative', flexShrink: 0, padding: 0, marginLeft: 12,
+    outline: 'none', boxShadow: 'none', WebkitAppearance: 'none', appearance: 'none', overflow: 'hidden',
   },
   interrupteurRond: {
     position: 'absolute', top: 2, width: 18, height: 18, borderRadius: '50%', background: 'white',
