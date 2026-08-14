@@ -1,18 +1,23 @@
-import Database from 'better-sqlite3';
+import pg from 'pg';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+const { Pool } = pg;
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const dbPath = path.join(__dirname, '../db/planning.db');
-const schemaPath = path.join(__dirname, '../db/schema.sql');
+const schemaPath = path.join(__dirname, '../db/schema.postgres.sql');
 
-const dbExists = fs.existsSync(dbPath);
-export const db = new Database(dbPath);
-db.pragma('foreign_keys = ON');
+// DATABASE_URL est fournie automatiquement par Railway quand on ajoute
+// un service PostgreSQL. En local, on utilise une valeur par défaut.
+const connectionString = process.env.DATABASE_URL || 'postgres://postgres:devpass@localhost:5432/krendo_dev';
 
-if (!dbExists) {
+export const pool = new Pool({
+  connectionString,
+  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+});
+
+export async function initDb() {
   const schema = fs.readFileSync(schemaPath, 'utf8');
-  db.exec(schema);
-  console.log('Base de données créée à partir du schéma.');
+  await pool.query(schema);
+  console.log('Base de données PostgreSQL prête (schéma appliqué).');
 }
