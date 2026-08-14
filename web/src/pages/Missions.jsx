@@ -7,6 +7,7 @@ export default function Missions({ utilisateur }) {
   const [chargement, setChargement] = useState(true);
   const [missionOuverte, setMissionOuverte] = useState(null);
   const [formulaireOuvert, setFormulaireOuvert] = useState(false);
+  const [missionEnEdition, setMissionEnEdition] = useState(null);
 
   const peutCreer = utilisateur.permissions.peut_creer_missions || utilisateur.permissions.peut_voir_tout;
 
@@ -54,13 +55,27 @@ export default function Missions({ utilisateur }) {
       )}
 
       {missionOuverte && (
-        <DetailMission mission={missionOuverte} utilisateur={utilisateur} onFermer={() => setMissionOuverte(null)} />
+        <DetailMission
+          mission={missionOuverte}
+          utilisateur={utilisateur}
+          onFermer={() => setMissionOuverte(null)}
+          onModifier={() => { setMissionEnEdition(missionOuverte); setMissionOuverte(null); }}
+          onSupprime={() => { setMissionOuverte(null); chargerMissions(); }}
+        />
       )}
 
       {formulaireOuvert && (
         <FormulaireMission
           onFermer={() => setFormulaireOuvert(false)}
           onCree={() => { setFormulaireOuvert(false); chargerMissions(); }}
+        />
+      )}
+
+      {missionEnEdition && (
+        <FormulaireMission
+          missionExistante={missionEnEdition}
+          onFermer={() => setMissionEnEdition(null)}
+          onCree={() => { setMissionEnEdition(null); chargerMissions(); }}
         />
       )}
     </div>
@@ -82,16 +97,17 @@ function CarteMission({ mission, onOuvrir }) {
   );
 }
 
-function DetailMission({ mission, utilisateur, onFermer }) {
+function DetailMission({ mission, utilisateur, onFermer, onModifier, onSupprime }) {
   const [onglet, setOnglet] = useState('heures');
   const [reponses, setReponses] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [visibleTous, setVisibleTous] = useState(mission.planning_visible_tous);
+  const [suppression, setSuppression] = useState(false);
   const navigate = useNavigate();
 
   const peutModifierCreneaux = utilisateur.permissions.peut_modifier_creneaux || utilisateur.permissions.peut_voir_tout;
   const peutValiderHeures = utilisateur.permissions.peut_valider_heures || utilisateur.permissions.peut_voir_tout;
-  const peutGererVisibilite = utilisateur.permissions.peut_creer_missions || utilisateur.permissions.peut_voir_tout;
+  const peutGererMission = utilisateur.permissions.peut_creer_missions || utilisateur.permissions.peut_voir_tout;
 
   useEffect(() => {
     api.reponsesMission(mission.id).then(setReponses).finally(() => setChargement(false));
@@ -106,6 +122,20 @@ function DetailMission({ mission, utilisateur, onFermer }) {
     const nouveauStatut = !visibleTous;
     setVisibleTous(nouveauStatut);
     await api.majMission(mission.id, { planning_visible_tous: nouveauStatut });
+  }
+
+  async function supprimer() {
+    const confirmation = window.confirm(
+      `Supprimer définitivement la mission "${mission.titre}" ?\n\nCela supprimera aussi les réponses, créneaux et conversations liés à cette mission.`
+    );
+    if (!confirmation) return;
+    setSuppression(true);
+    try {
+      await api.supprimerMission(mission.id);
+      onSupprime();
+    } finally {
+      setSuppression(false);
+    }
   }
 
   const disponibles = reponses.filter((r) => r.statut === 'disponible').length;
@@ -123,10 +153,18 @@ function DetailMission({ mission, utilisateur, onFermer }) {
               {mission.lieu ? ` · ${mission.lieu}` : ''}
             </p>
           </div>
-          <button style={styles.fermer} onClick={onFermer}>✕</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {peutGererMission && (
+              <>
+                <button style={styles.boutonIcone} title="Modifier" onClick={onModifier}>✏️</button>
+                <button style={styles.boutonIcone} title="Supprimer" onClick={supprimer} disabled={suppression}>🗑️</button>
+              </>
+            )}
+            <button style={styles.fermer} onClick={onFermer}>✕</button>
+          </div>
         </div>
 
-        {peutGererVisibilite && (
+        {peutGererMission && (
           <div style={styles.blocVisibilite}>
             <div>
               <p style={styles.visibiliteTitre}>Planning visible par toute l'équipe</p>
@@ -350,8 +388,13 @@ function StatutBadge({ statut }) {
   );
 }
 
-function FormulaireMission({ onFermer, onCree }) {
-  const [champ, setChamp] = useState({
+function FormulaireMission({ missionExistante, onFermer, onCree }) {
+  const [champ, setChamp] = useState(() => missionExistante ? {
+    titre: missionExistante.titre, lieu: missionExistante.lieu || '',
+    date_debut: missionExistante.date_debut, heure_debut: missionExistante.heure_debut,
+    date_fin: missionExistante.date_fin, heure_fin: missionExistante.heure_fin,
+    nb_employes_requis: missionExistante.nb_employes_requis, description: missionExistante.description || '',
+  } : {
     titre: '', lieu: '', date_debut: '', heure_debut: '08:00',
     date_fin: '', heure_fin: '18:00', nb_employes_requis: 1, description: '',
   });
@@ -367,7 +410,12 @@ function FormulaireMission({ onFermer, onCree }) {
     setErreur('');
     setEnvoi(true);
     try {
-      await api.creerMission({ ...champ, nb_employes_requis: Number(champ.nb_employes_requis) });
+      const donnees = { ...champ, nb_employes_requis: Number(champ.nb_employes_requis) };
+      if (missionExistante) {
+        await api.majMission(missionExistante.id, donnees);
+      } else {
+        await api.creerMission(donnees);
+      }
       onCree();
     } catch (err) {
       setErreur(err.message);
@@ -380,7 +428,7 @@ function FormulaireMission({ onFermer, onCree }) {
     <div style={styles.overlay} onClick={onFermer}>
       <form style={styles.panneau} onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
         <div style={styles.panneauEntete}>
-          <h2 style={styles.panneauTitre}>Nouvelle mission</h2>
+          <h2 style={styles.panneauTitre}>{missionExistante ? 'Modifier la mission' : 'Nouvelle mission'}</h2>
           <button type="button" style={styles.fermer} onClick={onFermer}>✕</button>
         </div>
 
@@ -414,7 +462,7 @@ function FormulaireMission({ onFermer, onCree }) {
         {erreur && <div style={styles.erreurForm}>{erreur}</div>}
 
         <button type="submit" disabled={envoi} style={styles.boutonPrincipalLarge}>
-          {envoi ? 'Création...' : 'Créer et notifier l\'équipe'}
+          {envoi ? 'Enregistrement...' : missionExistante ? 'Enregistrer les modifications' : 'Créer et notifier l\'équipe'}
         </button>
       </form>
     </div>
@@ -493,6 +541,7 @@ const styles = {
   panneauEntete: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
   panneauTitre: { fontSize: 20 },
   fermer: { background: 'var(--canvas)', border: 'none', borderRadius: 8, width: 30, height: 30, fontSize: 14 },
+  boutonIcone: { background: 'var(--canvas)', border: 'none', borderRadius: 8, width: 30, height: 30, fontSize: 13 },
   statsRangee: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 14 },
   statBloc: { borderRadius: 'var(--radius-sm)', padding: '10px 12px' },
   barreConteneur: { display: 'flex', height: 8, borderRadius: 4, overflow: 'hidden', marginBottom: 24, background: 'var(--border)' },

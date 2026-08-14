@@ -98,12 +98,43 @@ app.post('/api/missions', authentifier, requiresPermission('peut_creer_missions'
 });
 
 app.patch('/api/missions/:id', authentifier, requiresPermission('peut_creer_missions'), async (req, res) => {
-  const { planning_visible_tous } = req.body;
-  if (planning_visible_tous === undefined) return res.status(400).json({ erreur: 'Rien à mettre à jour' });
-  await pool.query(
-    'UPDATE missions SET planning_visible_tous = $1 WHERE id = $2 AND entreprise_id = $3',
-    [planning_visible_tous, req.params.id, req.utilisateur.entreprise_id]
+  const { titre, lieu, date_debut, heure_debut, date_fin, heure_fin, nb_employes_requis, description, planning_visible_tous } = req.body;
+  const champs = [];
+  const valeurs = [];
+  let i = 1;
+  const ajouter = (nom, valeur) => { if (valeur !== undefined) { champs.push(`${nom} = $${i++}`); valeurs.push(valeur); } };
+  ajouter('titre', titre);
+  ajouter('lieu', lieu);
+  ajouter('date_debut', date_debut);
+  ajouter('heure_debut', heure_debut);
+  ajouter('date_fin', date_fin);
+  ajouter('heure_fin', heure_fin);
+  ajouter('nb_employes_requis', nb_employes_requis);
+  ajouter('description', description);
+  ajouter('planning_visible_tous', planning_visible_tous);
+  if (champs.length === 0) return res.status(400).json({ erreur: 'Rien à mettre à jour' });
+  valeurs.push(req.params.id, req.utilisateur.entreprise_id);
+  await pool.query(`UPDATE missions SET ${champs.join(', ')} WHERE id = $${i++} AND entreprise_id = $${i}`, valeurs);
+  res.json({ ok: true });
+});
+
+app.delete('/api/missions/:id', authentifier, requiresPermission('peut_creer_missions'), async (req, res) => {
+  const { rows: [mission] } = await pool.query(
+    'SELECT id FROM missions WHERE id = $1 AND entreprise_id = $2',
+    [req.params.id, req.utilisateur.entreprise_id]
   );
+  if (!mission) return res.status(404).json({ erreur: 'Mission introuvable.' });
+
+  // Nettoyage des données liées avant de supprimer la mission elle-même
+  const { rows: conversations } = await pool.query('SELECT id FROM conversations WHERE mission_id = $1', [req.params.id]);
+  for (const conv of conversations) {
+    await pool.query('DELETE FROM messages WHERE conversation_id = $1', [conv.id]);
+  }
+  await pool.query('DELETE FROM conversations WHERE mission_id = $1', [req.params.id]);
+  await pool.query('DELETE FROM creneaux WHERE mission_id = $1', [req.params.id]);
+  await pool.query('DELETE FROM mission_reponses WHERE mission_id = $1', [req.params.id]);
+  await pool.query('DELETE FROM missions WHERE id = $1', [req.params.id]);
+
   res.json({ ok: true });
 });
 
