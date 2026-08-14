@@ -6,7 +6,7 @@ import { pool, initDb } from './db.js';
 
 const app = express();
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '8mb' }));
 
 const JWT_SECRET = process.env.JWT_SECRET || 'cle-secrete-de-demo-a-changer-en-production';
 
@@ -327,12 +327,18 @@ app.get('/api/conversations/:id/messages', authentifier, async (req, res) => {
 });
 
 app.post('/api/conversations/:id/messages', authentifier, async (req, res) => {
-  const { contenu } = req.body;
-  if (!contenu || !contenu.trim()) return res.status(400).json({ erreur: 'Message vide' });
+  const { contenu, piece_jointe } = req.body;
+  const texte = (contenu || '').trim();
+
+  if (!texte && !piece_jointe) return res.status(400).json({ erreur: 'Message vide' });
+  if (piece_jointe?.data && piece_jointe.data.length > 7_000_000) {
+    return res.status(413).json({ erreur: 'Fichier trop volumineux (max ~5 Mo).' });
+  }
 
   const { rows: [message] } = await pool.query(
-    `INSERT INTO messages (conversation_id, expediteur_utilisateur_id, contenu) VALUES ($1,$2,$3) RETURNING *`,
-    [req.params.id, req.utilisateur.id, contenu.trim()]
+    `INSERT INTO messages (conversation_id, expediteur_utilisateur_id, contenu, piece_jointe_nom, piece_jointe_type, piece_jointe_data)
+     VALUES ($1,$2,$3,$4,$5,$6) RETURNING *`,
+    [req.params.id, req.utilisateur.id, texte || null, piece_jointe?.nom || null, piece_jointe?.type || null, piece_jointe?.data || null]
   );
 
   // Notifie l'autre participant + email d'alerte (sans le contenu, par confidentialité)

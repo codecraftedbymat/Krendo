@@ -71,7 +71,11 @@ function FenetreMessages({ conversation, utilisateur, onMessageEnvoye }) {
   const [messages, setMessages] = useState([]);
   const [texte, setTexte] = useState('');
   const [chargement, setChargement] = useState(true);
+  const [pieceJointe, setPieceJointe] = useState(null);
+  const [envoi, setEnvoi] = useState(false);
+  const [erreur, setErreur] = useState('');
   const finRef = useRef(null);
+  const inputFichierRef = useRef(null);
 
   const autre = conversation.utilisateur_a_id === utilisateur.id
     ? { prenom: conversation.prenom_b, nom: conversation.nom_b }
@@ -85,14 +89,39 @@ function FenetreMessages({ conversation, utilisateur, onMessageEnvoye }) {
     finRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  function choisirFichier(e) {
+    const fichier = e.target.files[0];
+    if (!fichier) return;
+    setErreur('');
+    if (fichier.size > 5 * 1024 * 1024) {
+      setErreur('Fichier trop volumineux (5 Mo maximum).');
+      e.target.value = '';
+      return;
+    }
+    const lecteur = new FileReader();
+    lecteur.onload = () => {
+      setPieceJointe({ nom: fichier.name, type: fichier.type || 'application/octet-stream', data: lecteur.result });
+    };
+    lecteur.readAsDataURL(fichier);
+  }
+
   async function envoyer(e) {
     e.preventDefault();
-    if (!texte.trim()) return;
-    const contenu = texte;
-    setTexte('');
-    const message = await api.envoyerMessage(conversation.id, contenu);
-    setMessages((m) => [...m, message]);
-    onMessageEnvoye();
+    if (!texte.trim() && !pieceJointe) return;
+    setErreur('');
+    setEnvoi(true);
+    try {
+      const message = await api.envoyerMessage(conversation.id, texte, pieceJointe);
+      setMessages((m) => [...m, message]);
+      setTexte('');
+      setPieceJointe(null);
+      if (inputFichierRef.current) inputFichierRef.current.value = '';
+      onMessageEnvoye();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setEnvoi(false);
+    }
   }
 
   return (
@@ -111,7 +140,10 @@ function FenetreMessages({ conversation, utilisateur, onMessageEnvoye }) {
             return (
               <div key={m.id} style={{ display: 'flex', justifyContent: estMoi ? 'flex-end' : 'flex-start' }}>
                 <div style={{ ...styles.bulle, ...(estMoi ? styles.bulleMoi : styles.bulleAutre) }}>
-                  {m.contenu}
+                  {m.piece_jointe_data && (
+                    <PieceJointe nom={m.piece_jointe_nom} type={m.piece_jointe_type} data={m.piece_jointe_data} estMoi={estMoi} />
+                  )}
+                  {m.contenu && <div style={m.piece_jointe_data ? { marginTop: 6 } : undefined}>{m.contenu}</div>}
                 </div>
               </div>
             );
@@ -120,16 +152,42 @@ function FenetreMessages({ conversation, utilisateur, onMessageEnvoye }) {
         <div ref={finRef} />
       </div>
 
+      {pieceJointe && (
+        <div style={styles.apercuPieceJointe}>
+          {pieceJointe.type.startsWith('image/') ? (
+            <img src={pieceJointe.data} alt={pieceJointe.nom} style={styles.miniature} />
+          ) : (
+            <span style={styles.iconeFichier}>📎</span>
+          )}
+          <span style={styles.nomFichier}>{pieceJointe.nom}</span>
+          <button type="button" style={styles.retirerFichier} onClick={() => { setPieceJointe(null); if (inputFichierRef.current) inputFichierRef.current.value = ''; }}>✕</button>
+        </div>
+      )}
+      {erreur && <div style={styles.erreurChat}>{erreur}</div>}
+
       <form onSubmit={envoyer} style={styles.zoneSaisie}>
+        <input type="file" ref={inputFichierRef} onChange={choisirFichier} style={{ display: 'none' }} />
+        <button type="button" style={styles.boutonTrombone} onClick={() => inputFichierRef.current?.click()} title="Joindre un fichier">📎</button>
         <input
           style={styles.inputMessage}
           value={texte}
           onChange={(e) => setTexte(e.target.value)}
           placeholder="Écrire un message..."
         />
-        <button type="submit" style={styles.boutonEnvoyer}>Envoyer</button>
+        <button type="submit" disabled={envoi} style={styles.boutonEnvoyer}>{envoi ? '...' : 'Envoyer'}</button>
       </form>
     </>
+  );
+}
+
+function PieceJointe({ nom, type, data, estMoi }) {
+  if (type.startsWith('image/')) {
+    return <img src={data} alt={nom} style={styles.imageJointe} onClick={() => window.open(data, '_blank')} />;
+  }
+  return (
+    <a href={data} download={nom} style={{ ...styles.lienFichier, color: estMoi ? 'white' : 'var(--ink)' }}>
+      📎 {nom}
+    </a>
   );
 }
 
@@ -171,4 +229,21 @@ const styles = {
     background: 'var(--ink)', color: 'white', border: 'none', borderRadius: 'var(--radius-sm)',
     padding: '10px 18px', fontWeight: 700, fontSize: 13,
   },
+  boutonTrombone: {
+    background: 'var(--canvas)', border: 'none', borderRadius: 'var(--radius-sm)',
+    width: 40, height: 40, fontSize: 16, flexShrink: 0,
+  },
+  apercuPieceJointe: {
+    display: 'flex', alignItems: 'center', gap: 8, padding: '8px 16px',
+    borderTop: '1px solid var(--border)', background: 'var(--canvas)',
+  },
+  miniature: { width: 32, height: 32, borderRadius: 6, objectFit: 'cover' },
+  iconeFichier: { fontSize: 16 },
+  nomFichier: { fontSize: 12.5, color: 'var(--text-secondary)', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  retirerFichier: { background: 'none', border: 'none', color: 'var(--text-muted)', fontSize: 13, padding: 4 },
+  erreurChat: {
+    background: 'var(--red-soft)', color: 'var(--red)', padding: '8px 16px', fontSize: 12.5,
+  },
+  imageJointe: { maxWidth: 220, maxHeight: 220, borderRadius: 10, display: 'block', cursor: 'pointer' },
+  lienFichier: { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, fontWeight: 600, textDecoration: 'underline' },
 };

@@ -55,8 +55,8 @@ export const api = {
   ouvrirConversation: (utilisateur_id, mission_id) =>
     requete('/conversations', { method: 'POST', body: JSON.stringify({ utilisateur_id, mission_id }) }),
   messages: (conversationId) => requete(`/conversations/${conversationId}/messages`),
-  envoyerMessage: (conversationId, contenu) =>
-    requete(`/conversations/${conversationId}/messages`, { method: 'POST', body: JSON.stringify({ contenu }) }),
+  envoyerMessage: (conversationId, contenu, piece_jointe) =>
+    requete(`/conversations/${conversationId}/messages`, { method: 'POST', body: JSON.stringify({ contenu, piece_jointe }) }),
 };
 
 export function sauvegarderSession(token, utilisateur) {

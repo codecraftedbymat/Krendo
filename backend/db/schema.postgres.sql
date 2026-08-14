@@ -115,10 +115,18 @@ CREATE TABLE IF NOT EXISTS messages (
   id SERIAL PRIMARY KEY,
   conversation_id INTEGER NOT NULL REFERENCES conversations(id),
   expediteur_utilisateur_id INTEGER NOT NULL,
-  contenu TEXT NOT NULL,
+  contenu TEXT,
+  piece_jointe_nom TEXT,
+  piece_jointe_type TEXT,
+  piece_jointe_data TEXT,
   envoye_le TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   lu BOOLEAN DEFAULT FALSE
 );
+
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS piece_jointe_nom TEXT;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS piece_jointe_type TEXT;
+ALTER TABLE messages ADD COLUMN IF NOT EXISTS piece_jointe_data TEXT;
+ALTER TABLE messages ALTER COLUMN contenu DROP NOT NULL;
 
 CREATE TABLE IF NOT EXISTS notifications (
   id SERIAL PRIMARY KEY,
