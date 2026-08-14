@@ -7,17 +7,26 @@ const MOIS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 
 export default function Planning() {
   const [missions, setMissions] = useState([]);
   const [absences, setAbsences] = useState([]);
+  const [parametres, setParametres] = useState(null);
   const [chargement, setChargement] = useState(true);
   const [curseur, setCurseur] = useState(() => { const d = new Date(); d.setDate(1); return d; });
   const [jourOuvert, setJourOuvert] = useState(null);
 
   useEffect(() => {
-    Promise.all([api.missions(), api.absences()])
-      .then(([m, a]) => { setMissions(m); setAbsences(a.filter((x) => x.statut === 'acceptee')); })
+    Promise.all([api.missions(), api.absences(), api.parametres()])
+      .then(([m, a, p]) => { setMissions(m); setAbsences(a.filter((x) => x.statut === 'acceptee')); setParametres(p); })
       .finally(() => setChargement(false));
   }, []);
 
   const jours = construireGrille(curseur);
+  const joursTravailles = parametres ? parametres.jours_travailles.split(',').map(Number) : [1, 2, 3, 4, 5];
+
+  function estJourTravaille(date) {
+    const dateISO = formatISO(date);
+    const exception = parametres?.exceptions.find((e) => e.date === dateISO);
+    if (exception) return exception.statut === 'ouvert';
+    return joursTravailles.includes(date.getDay());
+  }
 
   function evenementsDuJour(dateISO) {
     const missionsJour = missions.filter((m) => dateISO >= m.date_debut && dateISO <= m.date_fin);
@@ -52,13 +61,19 @@ export default function Planning() {
               const dateISO = formatISO(jour);
               const { missionsJour, absencesJour } = evenementsDuJour(dateISO);
               const estAujourdhui = dateISO === formatISO(new Date());
+              const travaille = estJourTravaille(jour);
               return (
                 <button
                   key={i}
-                  style={{ ...styles.case, ...(estAujourdhui ? styles.caseAujourdhui : {}) }}
+                  style={{
+                    ...styles.case,
+                    ...(estAujourdhui ? styles.caseAujourdhui : {}),
+                    ...(!travaille ? styles.caseFermee : {}),
+                  }}
                   onClick={() => (missionsJour.length || absencesJour.length) && setJourOuvert({ date: jour, missionsJour, absencesJour })}
                 >
                   <span style={styles.numeroJour}>{jour.getDate()}</span>
+                  {!travaille && <span style={styles.etiquetteFerme}>Fermé</span>}
                   <div style={styles.pastilles}>
                     {missionsJour.slice(0, 2).map((m) => (
                       <div key={m.id} style={styles.pastilleMission}>{m.titre}</div>
@@ -184,7 +199,9 @@ const styles = {
     padding: 6, textAlign: 'left', display: 'flex', flexDirection: 'column', gap: 4, cursor: 'pointer',
   },
   caseAujourdhui: { borderColor: 'var(--emerald)', borderWidth: 1.5 },
+  caseFermee: { background: 'var(--canvas)', opacity: 0.6 },
   numeroJour: { fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)' },
+  etiquetteFerme: { fontSize: 9, color: 'var(--text-muted)', fontWeight: 600 },
   pastilles: { display: 'flex', flexDirection: 'column', gap: 2 },
   pastilleMission: {
     fontSize: 10, fontWeight: 600, background: 'var(--emerald-soft)', color: 'var(--emerald)',

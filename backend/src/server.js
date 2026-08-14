@@ -346,6 +346,48 @@ app.post('/api/conversations/:id/messages', authentifier, async (req, res) => {
   res.status(201).json(message);
 });
 
+// ============ PARAMÈTRES ENTREPRISE (jours travaillés, jours fériés) ============
+app.get('/api/parametres', authentifier, async (req, res) => {
+  const { rows: [entreprise] } = await pool.query(
+    'SELECT nom, jours_travailles, travaille_jours_feries FROM entreprises WHERE id = $1',
+    [req.utilisateur.entreprise_id]
+  );
+  const { rows: exceptions } = await pool.query(
+    'SELECT * FROM jours_exceptionnels WHERE entreprise_id = $1 ORDER BY date',
+    [req.utilisateur.entreprise_id]
+  );
+  res.json({ ...entreprise, exceptions });
+});
+
+app.patch('/api/parametres', authentifier, requiresPermission('peut_gerer_comptes'), async (req, res) => {
+  const { jours_travailles, travaille_jours_feries } = req.body;
+  const champs = [];
+  const valeurs = [];
+  let i = 1;
+  if (jours_travailles !== undefined) { champs.push(`jours_travailles = $${i++}`); valeurs.push(jours_travailles); }
+  if (travaille_jours_feries !== undefined) { champs.push(`travaille_jours_feries = $${i++}`); valeurs.push(travaille_jours_feries); }
+  if (champs.length === 0) return res.status(400).json({ erreur: 'Rien à mettre à jour' });
+  valeurs.push(req.utilisateur.entreprise_id);
+  await pool.query(`UPDATE entreprises SET ${champs.join(', ')} WHERE id = $${i}`, valeurs);
+  res.json({ ok: true });
+});
+
+app.post('/api/jours-exceptionnels', authentifier, requiresPermission('peut_gerer_comptes'), async (req, res) => {
+  const { date, statut, motif } = req.body;
+  const { rows: [jour] } = await pool.query(
+    `INSERT INTO jours_exceptionnels (entreprise_id, date, statut, motif) VALUES ($1,$2,$3,$4)
+     ON CONFLICT (entreprise_id, date) DO UPDATE SET statut = EXCLUDED.statut, motif = EXCLUDED.motif
+     RETURNING *`,
+    [req.utilisateur.entreprise_id, date, statut, motif || null]
+  );
+  res.status(201).json(jour);
+});
+
+app.delete('/api/jours-exceptionnels/:id', authentifier, requiresPermission('peut_gerer_comptes'), async (req, res) => {
+  await pool.query('DELETE FROM jours_exceptionnels WHERE id = $1 AND entreprise_id = $2', [req.params.id, req.utilisateur.entreprise_id]);
+  res.json({ ok: true });
+});
+
 app.get('/api/sante', (req, res) => res.json({ ok: true }));
 
 const PORT = process.env.PORT || 3001;

@@ -9,7 +9,21 @@ CREATE TABLE IF NOT EXISTS entreprises (
   id SERIAL PRIMARY KEY,
   nom TEXT NOT NULL,
   statut_abonnement TEXT NOT NULL DEFAULT 'essai' CHECK(statut_abonnement IN ('essai','actif','suspendu','resilie')),
+  jours_travailles TEXT NOT NULL DEFAULT '1,2,3,4,5',
+  travaille_jours_feries BOOLEAN NOT NULL DEFAULT FALSE,
   cree_le TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS jours_travailles TEXT NOT NULL DEFAULT '1,2,3,4,5';
+ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS travaille_jours_feries BOOLEAN NOT NULL DEFAULT FALSE;
+
+CREATE TABLE IF NOT EXISTS jours_exceptionnels (
+  id SERIAL PRIMARY KEY,
+  entreprise_id INTEGER NOT NULL REFERENCES entreprises(id),
+  date TEXT NOT NULL,
+  statut TEXT NOT NULL CHECK(statut IN ('ferme','ouvert')),
+  motif TEXT,
+  UNIQUE(entreprise_id, date)
 );
 
 CREATE TABLE IF NOT EXISTS roles (

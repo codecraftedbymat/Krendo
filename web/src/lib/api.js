@@ -39,6 +39,11 @@ export const api = {
   supprimerUtilisateur: (id) => requete(`/utilisateurs/${id}`, { method: 'DELETE' }),
   roles: () => requete('/roles'),
 
+  parametres: () => requete('/parametres'),
+  majParametres: (champs) => requete('/parametres', { method: 'PATCH', body: JSON.stringify(champs) }),
+  ajouterJourExceptionnel: (jour) => requete('/jours-exceptionnels', { method: 'POST', body: JSON.stringify(jour) }),
+  supprimerJourExceptionnel: (id) => requete(`/jours-exceptionnels/${id}`, { method: 'DELETE' }),
+
   creneauxMission: (missionId) => requete(`/missions/${missionId}/creneaux`),
   tousLesCreneaux: () => requete('/creneaux'),
   definirCreneau: (missionId, utilisateurId, creneau) =>

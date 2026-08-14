@@ -16,6 +16,9 @@ export default function Layout({ utilisateur, children }) {
     window.location.href = '/';
   }
 
+  const peutGererComptes = utilisateur.permissions.peut_gerer_comptes || utilisateur.permissions.peut_voir_tout;
+  const tousLiens = peutGererComptes ? [...liens, { to: '/parametres', label: 'Paramètres', icon: '⚙️' }] : liens;
+
   return (
     <div style={styles.page}>
       <aside style={styles.sidebar}>
@@ -25,7 +28,7 @@ export default function Layout({ utilisateur, children }) {
         </div>
 
         <nav style={styles.nav}>
-          {liens.map((l) => (
+          {tousLiens.map((l) => (
             <NavLink
               key={l.to}
               to={l.to}

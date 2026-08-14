@@ -7,6 +7,7 @@ import Heures from './pages/Heures';
 import Absences from './pages/Absences';
 import Equipe from './pages/Equipe';
 import Chat from './pages/Chat';
+import Parametres from './pages/Parametres';
 import Layout from './components/Layout';
 import { chargerSession } from './lib/api';
 
@@ -27,6 +28,7 @@ export default function App() {
           <Route path="/absences" element={<Absences />} />
           <Route path="/messages" element={<Chat utilisateur={session.utilisateur} />} />
           <Route path="/equipe" element={<Equipe utilisateur={session.utilisateur} />} />
+          <Route path="/parametres" element={<Parametres />} />
         </Routes>
       </Layout>
     </BrowserRouter>
