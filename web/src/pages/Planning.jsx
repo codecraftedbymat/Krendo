@@ -8,13 +8,20 @@ export default function Planning() {
   const [missions, setMissions] = useState([]);
   const [absences, setAbsences] = useState([]);
   const [parametres, setParametres] = useState(null);
+  const [creneaux, setCreneaux] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [curseur, setCurseur] = useState(() => { const d = new Date(); d.setDate(1); return d; });
   const [jourOuvert, setJourOuvert] = useState(null);
+  const [dateJour, setDateJour] = useState(formatISO(new Date()));
 
   useEffect(() => {
-    Promise.all([api.missions(), api.absences(), api.parametres()])
-      .then(([m, a, p]) => { setMissions(m); setAbsences(a.filter((x) => x.statut === 'acceptee')); setParametres(p); })
+    Promise.all([api.missions(), api.absences(), api.parametres(), api.tousLesCreneaux()])
+      .then(([m, a, p, c]) => {
+        setMissions(m);
+        setAbsences(a.filter((x) => x.statut === 'acceptee'));
+        setParametres(p);
+        setCreneaux(c);
+      })
       .finally(() => setChargement(false));
   }, []);
 
@@ -36,6 +43,14 @@ export default function Planning() {
 
   return (
     <div>
+      <VueDuJour
+        date={dateJour}
+        onChangeDate={setDateJour}
+        missions={missions}
+        creneaux={creneaux}
+        absences={absences}
+      />
+
       <div style={styles.entete}>
         <div>
           <h1 style={styles.titre}>Planning</h1>
@@ -100,6 +115,97 @@ export default function Planning() {
       {jourOuvert && <PanneauJour info={jourOuvert} onFermer={() => setJourOuvert(null)} />}
     </div>
   );
+}
+
+function VueDuJour({ date, onChangeDate, missions, creneaux, absences }) {
+  const [employes, setEmployes] = useState([]);
+  const [chargement, setChargement] = useState(true);
+
+  const missionsJour = missions.filter((m) => date >= m.date_debut && date <= m.date_fin);
+  const absencesJour = absences.filter((a) => date >= a.date_debut && date <= a.date_fin);
+
+  useEffect(() => {
+    let annule = false;
+    setChargement(true);
+
+    Promise.all(missionsJour.map((m) => api.reponsesMission(m.id).then((reponses) => ({ mission: m, reponses }))))
+      .then((resultats) => {
+        if (annule) return;
+        const liste = [];
+        for (const { mission, reponses } of resultats) {
+          for (const r of reponses.filter((r) => r.statut === 'disponible')) {
+            const creneau = creneaux.find((c) => c.mission_id === mission.id && c.utilisateur_id === r.utilisateur_id && !c.est_heure_supplementaire);
+            liste.push({
+              utilisateurId: r.utilisateur_id,
+              prenom: r.prenom,
+              nom: r.nom,
+              mission: mission.titre,
+              heureDebut: creneau?.heure_debut || mission.heure_debut,
+              heureFin: creneau?.heure_fin || mission.heure_fin,
+              defini: !!creneau,
+            });
+          }
+        }
+        liste.sort((a, b) => a.heureDebut.localeCompare(b.heureDebut));
+        setEmployes(liste);
+      })
+      .finally(() => !annule && setChargement(false));
+
+    return () => { annule = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [date, missions, creneaux]);
+
+  return (
+    <div style={styles.blocJour}>
+      <div style={styles.blocJourEntete}>
+        <div>
+          <p style={styles.blocJourTitre}>Qui travaille</p>
+          <p style={styles.blocJourSousTitre}>{formatDateLongue(date)}</p>
+        </div>
+        <input
+          type="date"
+          value={date}
+          onChange={(e) => onChangeDate(e.target.value)}
+          style={styles.inputDate}
+        />
+      </div>
+
+      {chargement ? (
+        <p style={styles.texteAttente}>Chargement...</p>
+      ) : employes.length === 0 && absencesJour.length === 0 ? (
+        <p style={styles.texteAttente}>Personne de prévu ce jour-là.</p>
+      ) : (
+        <div style={styles.listeJour}>
+          {employes.map((e, i) => (
+            <div key={i} style={styles.ligneJour}>
+              <div style={styles.avatarPetit}>{e.prenom[0]}{e.nom[0]}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600 }}>{e.prenom} {e.nom}</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{e.mission}</div>
+              </div>
+              <span style={styles.heureTexteJour}>
+                {e.heureDebut}–{e.heureFin}{!e.defini && <span style={styles.parDefaut}> (par défaut)</span>}
+              </span>
+            </div>
+          ))}
+          {absencesJour.map((a) => (
+            <div key={`abs-${a.id}`} style={{ ...styles.ligneJour, background: 'var(--amber-soft)' }}>
+              <div style={{ ...styles.avatarPetit, background: 'var(--card)', color: 'var(--amber)' }}>{a.prenom[0]}{a.nom[0]}</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 600 }}>{a.prenom} {a.nom}</div>
+                <div style={{ fontSize: 12, color: 'var(--amber)' }}>Absent{a.prenom.endsWith('e') ? 'e' : ''}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function formatDateLongue(iso) {
+  const d = new Date(iso + 'T00:00:00');
+  return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 function PanneauJour({ info, onFermer }) {
@@ -180,6 +286,28 @@ function formatISO(date) {
 }
 
 const styles = {
+  blocJour: {
+    background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-lg)',
+    padding: 20, marginBottom: 24,
+  },
+  blocJourEntete: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14, flexWrap: 'wrap', gap: 10 },
+  blocJourTitre: { fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 16, margin: 0 },
+  blocJourSousTitre: { fontSize: 12.5, color: 'var(--text-secondary)', margin: '2px 0 0', textTransform: 'capitalize' },
+  inputDate: {
+    padding: '7px 10px', borderRadius: 'var(--radius-sm)', border: '1.5px solid var(--border)',
+    fontSize: 12.5, fontFamily: 'var(--font-body)',
+  },
+  listeJour: { display: 'flex', flexDirection: 'column', gap: 6 },
+  ligneJour: {
+    display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px',
+    background: 'var(--canvas)', borderRadius: 'var(--radius-sm)',
+  },
+  heureTexteJour: { fontFamily: 'var(--font-mono)', fontSize: 12.5, fontWeight: 600, whiteSpace: 'nowrap' },
+  parDefaut: { fontFamily: 'var(--font-body)', fontWeight: 400, color: 'var(--text-muted)', fontSize: 10.5 },
+  avatarPetit: {
+    width: 30, height: 30, borderRadius: '50%', background: 'var(--emerald-soft)', color: 'var(--emerald)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10.5, fontWeight: 700, flexShrink: 0,
+  },
   entete: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, flexWrap: 'wrap', gap: 12 },
   titre: { fontSize: 26 },
   sousTitre: { color: 'var(--text-secondary)', fontSize: 14, margin: '6px 0 0' },
