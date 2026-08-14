@@ -168,6 +168,132 @@ app.post('/api/utilisateurs', authentifier, requiresPermission('peut_gerer_compt
   res.status(201).json({ id: user.id });
 });
 
+app.patch('/api/utilisateurs/:id', authentifier, requiresPermission('peut_gerer_comptes'), async (req, res) => {
+  const { actif, role_id } = req.body;
+  const champs = [];
+  const valeurs = [];
+  let i = 1;
+  if (actif !== undefined) { champs.push(`actif = $${i++}`); valeurs.push(actif); }
+  if (role_id !== undefined) { champs.push(`role_id = $${i++}`); valeurs.push(role_id); }
+  if (champs.length === 0) return res.status(400).json({ erreur: 'Rien à mettre à jour' });
+  valeurs.push(req.params.id, req.utilisateur.entreprise_id);
+  await pool.query(`UPDATE utilisateurs SET ${champs.join(', ')} WHERE id = $${i++} AND entreprise_id = $${i}`, valeurs);
+  res.json({ ok: true });
+});
+
+// ============ RÔLES (pour peupler le formulaire de création de compte) ============
+app.get('/api/roles', authentifier, async (req, res) => {
+  const { rows } = await pool.query('SELECT id, nom FROM roles ORDER BY id');
+  res.json(rows);
+});
+
+// ============ CRÉNEAUX & HEURES ============
+// Liste des créneaux d'une mission (un par employé ayant répondu "disponible" ou déjà assigné)
+app.get('/api/missions/:id/creneaux', authentifier, async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT c.*, u.prenom, u.nom FROM creneaux c
+     JOIN utilisateurs u ON c.utilisateur_id = u.id
+     WHERE c.mission_id = $1 ORDER BY c.est_heure_supplementaire, u.prenom`,
+    [req.params.id]
+  );
+  res.json(rows);
+});
+
+// Crée ou modifie le créneau d'un employé sur une mission (admin uniquement)
+app.put('/api/missions/:id/creneaux/:utilisateurId', authentifier, requiresPermission('peut_modifier_creneaux'), async (req, res) => {
+  const { heure_debut, heure_fin, est_heure_supplementaire, motif } = req.body;
+  const { rows: [creneau] } = await pool.query(
+    `INSERT INTO creneaux (mission_id, utilisateur_id, heure_debut, heure_fin, est_heure_supplementaire, motif, modifie_par_utilisateur_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+    [req.params.id, req.params.utilisateurId, heure_debut, heure_fin, !!est_heure_supplementaire, motif || null, req.utilisateur.id]
+  );
+  await pool.query(
+    `INSERT INTO notifications (utilisateur_id, type, titre, contenu, lien_id) VALUES ($1,$2,$3,$4,$5)`,
+    [req.params.utilisateurId, 'creneau_modifie', 'Votre créneau a été modifié', `Nouveaux horaires : ${heure_debut} - ${heure_fin}`, req.params.id]
+  );
+  res.status(201).json({ id: creneau.id });
+});
+
+app.delete('/api/creneaux/:id', authentifier, requiresPermission('peut_modifier_creneaux'), async (req, res) => {
+  await pool.query('DELETE FROM creneaux WHERE id = $1', [req.params.id]);
+  res.json({ ok: true });
+});
+
+// Validation / annulation des heures (admin RH ou super admin)
+app.patch('/api/creneaux/:id/statut', authentifier, requiresPermission('peut_valider_heures'), async (req, res) => {
+  const { statut_validation } = req.body; // 'valide' ou 'annule'
+  await pool.query('UPDATE creneaux SET statut_validation = $1 WHERE id = $2', [statut_validation, req.params.id]);
+  res.json({ ok: true });
+});
+
+// ============ CHAT ============
+// Liste des conversations de l'utilisateur connecté
+app.get('/api/conversations', authentifier, async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT c.*,
+       ua.prenom as prenom_a, ua.nom as nom_a,
+       ub.prenom as prenom_b, ub.nom as nom_b,
+       (SELECT contenu FROM messages m WHERE m.conversation_id = c.id ORDER BY m.envoye_le DESC LIMIT 1) as dernier_message,
+       (SELECT envoye_le FROM messages m WHERE m.conversation_id = c.id ORDER BY m.envoye_le DESC LIMIT 1) as dernier_message_le
+     FROM conversations c
+     JOIN utilisateurs ua ON c.utilisateur_a_id = ua.id
+     JOIN utilisateurs ub ON c.utilisateur_b_id = ub.id
+     WHERE c.entreprise_id = $1 AND (c.utilisateur_a_id = $2 OR c.utilisateur_b_id = $2)
+     ORDER BY dernier_message_le DESC NULLS LAST`,
+    [req.utilisateur.entreprise_id, req.utilisateur.id]
+  );
+  res.json(rows);
+});
+
+// Récupère (ou crée) la conversation avec un autre utilisateur
+app.post('/api/conversations', authentifier, async (req, res) => {
+  const { utilisateur_id, mission_id } = req.body;
+  const a = Math.min(req.utilisateur.id, utilisateur_id);
+  const b = Math.max(req.utilisateur.id, utilisateur_id);
+
+  const { rows: existantes } = await pool.query(
+    `SELECT * FROM conversations WHERE entreprise_id = $1 AND utilisateur_a_id = $2 AND utilisateur_b_id = $3 AND mission_id IS NOT DISTINCT FROM $4`,
+    [req.utilisateur.entreprise_id, a, b, mission_id || null]
+  );
+  if (existantes[0]) return res.json(existantes[0]);
+
+  const { rows: [conv] } = await pool.query(
+    `INSERT INTO conversations (entreprise_id, mission_id, utilisateur_a_id, utilisateur_b_id) VALUES ($1,$2,$3,$4) RETURNING *`,
+    [req.utilisateur.entreprise_id, mission_id || null, a, b]
+  );
+  res.status(201).json(conv);
+});
+
+app.get('/api/conversations/:id/messages', authentifier, async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT m.*, u.prenom, u.nom FROM messages m
+     JOIN utilisateurs u ON m.expediteur_utilisateur_id = u.id
+     WHERE m.conversation_id = $1 ORDER BY m.envoye_le ASC`,
+    [req.params.id]
+  );
+  res.json(rows);
+});
+
+app.post('/api/conversations/:id/messages', authentifier, async (req, res) => {
+  const { contenu } = req.body;
+  if (!contenu || !contenu.trim()) return res.status(400).json({ erreur: 'Message vide' });
+
+  const { rows: [message] } = await pool.query(
+    `INSERT INTO messages (conversation_id, expediteur_utilisateur_id, contenu) VALUES ($1,$2,$3) RETURNING *`,
+    [req.params.id, req.utilisateur.id, contenu.trim()]
+  );
+
+  // Notifie l'autre participant + email d'alerte (sans le contenu, par confidentialité)
+  const { rows: [conv] } = await pool.query('SELECT * FROM conversations WHERE id = $1', [req.params.id]);
+  const destinataireId = conv.utilisateur_a_id === req.utilisateur.id ? conv.utilisateur_b_id : conv.utilisateur_a_id;
+  await pool.query(
+    `INSERT INTO notifications (utilisateur_id, type, titre, contenu, lien_id) VALUES ($1,$2,$3,$4,$5)`,
+    [destinataireId, 'nouveau_message', 'Nouveau message', 'Un nouveau message vous concernant a été envoyé — connectez-vous pour le consulter.', conv.id]
+  );
+
+  res.status(201).json(message);
+});
+
 app.get('/api/sante', (req, res) => res.json({ ok: true }));
 
 const PORT = process.env.PORT || 3001;
