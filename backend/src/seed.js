@@ -1,17 +1,32 @@
 import { pool, initDb } from './db.js';
 import bcrypt from 'bcryptjs';
 
+const hash = (pwd) => bcrypt.hashSync(pwd, 10);
+
+async function creerAdminPlateformeSiBesoin() {
+  if (!process.env.PLATEFORME_ADMIN_EMAIL || !process.env.PLATEFORME_ADMIN_MOT_DE_PASSE) {
+    console.log('Astuce: définissez PLATEFORME_ADMIN_EMAIL et PLATEFORME_ADMIN_MOT_DE_PASSE pour créer votre accès back-office.');
+    return;
+  }
+  const { rows: existants } = await pool.query('SELECT COUNT(*) as n FROM plateforme_admins');
+  if (Number(existants[0].n) > 0) return;
+  await pool.query(
+    'INSERT INTO plateforme_admins (email, mot_de_passe_hash, nom) VALUES ($1,$2,$3)',
+    [process.env.PLATEFORME_ADMIN_EMAIL, hash(process.env.PLATEFORME_ADMIN_MOT_DE_PASSE), process.env.PLATEFORME_ADMIN_NOM || 'Admin']
+  );
+  console.log('Admin plateforme (back-office) créé ->', process.env.PLATEFORME_ADMIN_EMAIL);
+}
+
 async function seed() {
   await initDb();
+  await creerAdminPlateformeSiBesoin();
 
   const { rows: existants } = await pool.query('SELECT COUNT(*) as n FROM entreprises');
   if (Number(existants[0].n) > 0) {
-    console.log('Des données existent déjà, seed ignoré.');
+    console.log('Des données de démo existent déjà, seed de démo ignoré.');
     await pool.end();
     return;
   }
-
-  const hash = (pwd) => bcrypt.hashSync(pwd, 10);
 
   const { rows: [entreprise] } = await pool.query(
     'INSERT INTO entreprises (nom) VALUES ($1) RETURNING id',

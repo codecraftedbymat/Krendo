@@ -145,3 +145,20 @@ CREATE TABLE IF NOT EXISTS notifications (
   email_envoye BOOLEAN DEFAULT FALSE,
   cree_le TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE IF NOT EXISTS reinitialisations_mot_de_passe (
+  id SERIAL PRIMARY KEY,
+  utilisateur_id INTEGER NOT NULL REFERENCES utilisateurs(id),
+  token_hash TEXT NOT NULL,
+  expire_le TIMESTAMP NOT NULL,
+  utilise BOOLEAN NOT NULL DEFAULT FALSE,
+  cree_le TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS plateforme_admins (
+  id SERIAL PRIMARY KEY,
+  email TEXT NOT NULL UNIQUE,
+  mot_de_passe_hash TEXT NOT NULL,
+  nom TEXT NOT NULL,
+  cree_le TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

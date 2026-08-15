@@ -2,11 +2,41 @@ import express from 'express';
 import cors from 'cors';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import rateLimit from 'express-rate-limit';
 import { pool, initDb } from './db.js';
+import { envoyerEmail, modelesEmail } from './email.js';
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '8mb' }));
+
+// Anti brute-force : limite les tentatives de connexion (8 essais / 15 min / IP)
+const limiteurConnexion = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  message: { erreur: 'Trop de tentatives de connexion. Réessayez dans quelques minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Limite dédiée aux demandes de réinitialisation de mot de passe (plus permissive)
+const limiteurMotDePasseOublie = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 5,
+  message: { erreur: 'Trop de demandes. Réessayez dans quelques minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+// Limite générale plus large sur toute l'API, pour éviter les abus automatisés
+const limiteurGeneral = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use('/api', limiteurGeneral);
 
 const JWT_SECRET = process.env.JWT_SECRET || 'cle-secrete-de-demo-a-changer-en-production';
 
@@ -41,7 +71,7 @@ function requiresPermission(permission) {
 }
 
 // ============ AUTHENTIFICATION ============
-app.post('/api/connexion', async (req, res) => {
+app.post('/api/connexion', limiteurConnexion, async (req, res) => {
   const { email, mot_de_passe } = req.body;
   const { rows: userRows } = await pool.query('SELECT * FROM utilisateurs WHERE email = $1 AND actif = TRUE', [email]);
   const user = userRows[0];
@@ -80,7 +110,7 @@ app.post('/api/missions', authentifier, requiresPermission('peut_creer_missions'
   );
 
   const { rows: employes } = await pool.query(
-    `SELECT u.id FROM utilisateurs u JOIN roles r ON u.role_id = r.id WHERE u.entreprise_id = $1 AND r.nom = 'Employé' AND u.actif = TRUE`,
+    `SELECT u.id, u.email, u.prenom FROM utilisateurs u JOIN roles r ON u.role_id = r.id WHERE u.entreprise_id = $1 AND r.nom = 'Employé' AND u.actif = TRUE`,
     [req.utilisateur.entreprise_id]
   );
   for (const emp of employes) {
@@ -92,6 +122,11 @@ app.post('/api/missions', authentifier, requiresPermission('peut_creer_missions'
       `INSERT INTO mission_reponses (mission_id, utilisateur_id, statut) VALUES ($1,$2,'en_attente')`,
       [mission.id, emp.id]
     );
+    envoyerEmail({
+      destinataireEmail: emp.email, destinataireNom: emp.prenom,
+      sujet: 'Nouvelle mission disponible sur Krendo',
+      contenuHtml: modelesEmail.nouvelleMission(emp.prenom, titre),
+    }).catch(() => {});
     // -> ici viendra l'envoi réel de l'email
   }
   res.status(201).json({ id: mission.id, notifies: employes.length });
@@ -186,6 +221,12 @@ app.post('/api/absences', authentifier, async (req, res) => {
       `INSERT INTO notifications (utilisateur_id, type, titre, contenu, lien_id) VALUES ($1,$2,$3,$4,$5)`,
       [cibleId, 'absence_traitee', 'Une absence a été enregistrée pour vous', `Du ${date_debut} au ${date_fin}${motif ? ` — ${motif}` : ''}`, absence.id]
     );
+    const { rows: [emp] } = await pool.query('SELECT email, prenom FROM utilisateurs WHERE id = $1', [cibleId]);
+    envoyerEmail({
+      destinataireEmail: emp.email, destinataireNom: emp.prenom,
+      sujet: 'Une absence a été enregistrée pour vous sur Krendo',
+      contenuHtml: modelesEmail.absenceTraitee(emp.prenom, 'acceptee', date_debut, date_fin),
+    }).catch(() => {});
   }
 
   res.status(201).json({ id: absence.id, statut });
@@ -226,6 +267,12 @@ app.patch('/api/absences/:id', authentifier, requiresPermission('peut_valider_ab
       `INSERT INTO notifications (utilisateur_id, type, titre, contenu, lien_id) VALUES ($1,$2,$3,$4,$5)`,
       [absence.utilisateur_id, 'absence_traitee', `Demande d'absence ${statut === 'acceptee' ? 'acceptée' : 'refusée'}`, `Du ${absence.date_debut} au ${absence.date_fin}`, absence.id]
     );
+    const { rows: [emp] } = await pool.query('SELECT email, prenom FROM utilisateurs WHERE id = $1', [absence.utilisateur_id]);
+    envoyerEmail({
+      destinataireEmail: emp.email, destinataireNom: emp.prenom,
+      sujet: `Votre demande d'absence a été ${statut === 'acceptee' ? 'acceptée' : 'refusée'}`,
+      contenuHtml: modelesEmail.absenceTraitee(emp.prenom, statut, absence.date_debut, absence.date_fin),
+    }).catch(() => {});
   }
   res.json({ ok: true });
 });
@@ -349,6 +396,12 @@ app.put('/api/missions/:id/creneaux/:utilisateurId', authentifier, requiresPermi
     `INSERT INTO notifications (utilisateur_id, type, titre, contenu, lien_id) VALUES ($1,$2,$3,$4,$5)`,
     [req.params.utilisateurId, 'creneau_modifie', 'Votre créneau a été modifié', `Nouveaux horaires : ${heure_debut} - ${heure_fin}${poste ? ` (${poste})` : ''}`, req.params.id]
   );
+  const { rows: [emp] } = await pool.query('SELECT email, prenom FROM utilisateurs WHERE id = $1', [req.params.utilisateurId]);
+  envoyerEmail({
+    destinataireEmail: emp.email, destinataireNom: emp.prenom,
+    sujet: 'Votre créneau a été modifié sur Krendo',
+    contenuHtml: modelesEmail.creneauModifie(emp.prenom, heure_debut, heure_fin),
+  }).catch(() => {});
   res.status(201).json({ id: creneau.id });
 });
 
@@ -443,6 +496,12 @@ app.post('/api/conversations/:id/messages', authentifier, async (req, res) => {
     `INSERT INTO notifications (utilisateur_id, type, titre, contenu, lien_id) VALUES ($1,$2,$3,$4,$5)`,
     [destinataireId, 'nouveau_message', 'Nouveau message', 'Un nouveau message vous concernant a été envoyé — connectez-vous pour le consulter.', conv.id]
   );
+  const { rows: [destinataire] } = await pool.query('SELECT email, prenom FROM utilisateurs WHERE id = $1', [destinataireId]);
+  envoyerEmail({
+    destinataireEmail: destinataire.email, destinataireNom: destinataire.prenom,
+    sujet: 'Nouveau message sur Krendo',
+    contenuHtml: modelesEmail.nouveauMessage(destinataire.prenom),
+  }).catch(() => {});
 
   res.status(201).json(message);
 });
@@ -486,6 +545,112 @@ app.post('/api/jours-exceptionnels', authentifier, requiresPermission('peut_gere
 
 app.delete('/api/jours-exceptionnels/:id', authentifier, requiresPermission('peut_gerer_comptes'), async (req, res) => {
   await pool.query('DELETE FROM jours_exceptionnels WHERE id = $1 AND entreprise_id = $2', [req.params.id, req.utilisateur.entreprise_id]);
+  res.json({ ok: true });
+});
+
+// ============ MOT DE PASSE OUBLIÉ ============
+app.post('/api/mot-de-passe-oublie', limiteurMotDePasseOublie, async (req, res) => {
+  const { email } = req.body;
+  const { rows: [user] } = await pool.query('SELECT * FROM utilisateurs WHERE email = $1 AND actif = TRUE', [email]);
+
+  // Réponse identique que le compte existe ou non, pour ne pas révéler quels emails sont enregistrés
+  if (user) {
+    const token = crypto.randomBytes(32).toString('hex');
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expireLe = new Date(Date.now() + 60 * 60 * 1000); // 1h
+
+    await pool.query(
+      `INSERT INTO reinitialisations_mot_de_passe (utilisateur_id, token_hash, expire_le) VALUES ($1,$2,$3)`,
+      [user.id, tokenHash, expireLe]
+    );
+
+    const lien = `${process.env.FRONTEND_URL || ''}/reinitialiser?token=${token}`;
+    envoyerEmail({
+      destinataireEmail: user.email, destinataireNom: user.prenom,
+      sujet: 'Réinitialisation de votre mot de passe Krendo',
+      contenuHtml: modelesEmail.reinitialisationMotDePasse(user.prenom, lien),
+    }).catch(() => {});
+  }
+
+  res.json({ ok: true, message: 'Si un compte existe avec cet email, un lien de réinitialisation a été envoyé.' });
+});
+
+app.post('/api/reinitialiser-mot-de-passe', async (req, res) => {
+  const { token, nouveau_mot_de_passe } = req.body;
+  if (!token || !nouveau_mot_de_passe || nouveau_mot_de_passe.length < 6) {
+    return res.status(400).json({ erreur: 'Requête invalide (mot de passe trop court).' });
+  }
+
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const { rows: [entree] } = await pool.query(
+    `SELECT * FROM reinitialisations_mot_de_passe WHERE token_hash = $1 AND utilise = FALSE AND expire_le > NOW()`,
+    [tokenHash]
+  );
+  if (!entree) return res.status(400).json({ erreur: 'Lien invalide ou expiré. Refaites une demande.' });
+
+  const hash = bcrypt.hashSync(nouveau_mot_de_passe, 10);
+  await pool.query('UPDATE utilisateurs SET mot_de_passe_hash = $1 WHERE id = $2', [hash, entree.utilisateur_id]);
+  await pool.query('UPDATE reinitialisations_mot_de_passe SET utilise = TRUE WHERE id = $1', [entree.id]);
+
+  res.json({ ok: true });
+});
+
+// ============ BACK-OFFICE (administration de la plateforme Krendo) ============
+function authentifierPlateforme(req, res, next) {
+  const header = req.headers.authorization;
+  if (!header) return res.status(401).json({ erreur: 'Non authentifié' });
+  try {
+    const payload = jwt.verify(header.replace('Bearer ', ''), JWT_SECRET);
+    if (!payload.plateforme_admin) return res.status(403).json({ erreur: 'Accès réservé au back-office.' });
+    req.plateformeAdmin = payload;
+    next();
+  } catch {
+    return res.status(401).json({ erreur: 'Session invalide, reconnectez-vous' });
+  }
+}
+
+app.post('/api/plateforme/connexion', limiteurConnexion, async (req, res) => {
+  const { email, mot_de_passe } = req.body;
+  const { rows: [admin] } = await pool.query('SELECT * FROM plateforme_admins WHERE email = $1', [email]);
+  if (!admin || !bcrypt.compareSync(mot_de_passe, admin.mot_de_passe_hash)) {
+    return res.status(401).json({ erreur: 'Email ou mot de passe incorrect' });
+  }
+  const token = jwt.sign({ id: admin.id, plateforme_admin: true }, JWT_SECRET, { expiresIn: '12h' });
+  res.json({ token, admin: { id: admin.id, nom: admin.nom, email: admin.email } });
+});
+
+app.get('/api/plateforme/entreprises', authentifierPlateforme, async (req, res) => {
+  const { rows } = await pool.query(`
+    SELECT e.*, COUNT(u.id) as nb_utilisateurs
+    FROM entreprises e
+    LEFT JOIN utilisateurs u ON u.entreprise_id = e.id AND u.actif = TRUE
+    GROUP BY e.id ORDER BY e.cree_le DESC
+  `);
+  res.json(rows);
+});
+
+app.post('/api/plateforme/entreprises', authentifierPlateforme, async (req, res) => {
+  const { nom, admin_prenom, admin_nom, admin_email, admin_mot_de_passe } = req.body;
+
+  const { rows: [entreprise] } = await pool.query(
+    'INSERT INTO entreprises (nom) VALUES ($1) RETURNING id',
+    [nom]
+  );
+
+  const { rows: [roleSuperAdmin] } = await pool.query(`SELECT id FROM roles WHERE nom = 'Super admin' LIMIT 1`);
+  const hash = bcrypt.hashSync(admin_mot_de_passe, 10);
+  await pool.query(
+    `INSERT INTO utilisateurs (entreprise_id, role_id, prenom, nom, email, mot_de_passe_hash) VALUES ($1,$2,$3,$4,$5,$6)`,
+    [entreprise.id, roleSuperAdmin.id, admin_prenom, admin_nom, admin_email, hash]
+  );
+
+  res.status(201).json({ id: entreprise.id });
+});
+
+app.patch('/api/plateforme/entreprises/:id', authentifierPlateforme, async (req, res) => {
+  const { statut_abonnement } = req.body;
+  if (!statut_abonnement) return res.status(400).json({ erreur: 'Rien à mettre à jour' });
+  await pool.query('UPDATE entreprises SET statut_abonnement = $1 WHERE id = $2', [statut_abonnement, req.params.id]);
   res.json({ ok: true });
 });
 
