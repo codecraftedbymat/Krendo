@@ -648,9 +648,16 @@ app.post('/api/plateforme/entreprises', authentifierPlateforme, async (req, res)
 });
 
 app.patch('/api/plateforme/entreprises/:id', authentifierPlateforme, async (req, res) => {
-  const { statut_abonnement } = req.body;
-  if (!statut_abonnement) return res.status(400).json({ erreur: 'Rien à mettre à jour' });
-  await pool.query('UPDATE entreprises SET statut_abonnement = $1 WHERE id = $2', [statut_abonnement, req.params.id]);
+  const { statut_abonnement, compte_gratuit, note_interne } = req.body;
+  const champs = [];
+  const valeurs = [];
+  let i = 1;
+  if (statut_abonnement !== undefined) { champs.push(`statut_abonnement = $${i++}`); valeurs.push(statut_abonnement); }
+  if (compte_gratuit !== undefined) { champs.push(`compte_gratuit = $${i++}`); valeurs.push(compte_gratuit); }
+  if (note_interne !== undefined) { champs.push(`note_interne = $${i++}`); valeurs.push(note_interne); }
+  if (champs.length === 0) return res.status(400).json({ erreur: 'Rien à mettre à jour' });
+  valeurs.push(req.params.id);
+  await pool.query(`UPDATE entreprises SET ${champs.join(', ')} WHERE id = $${i}`, valeurs);
   res.json({ ok: true });
 });
 

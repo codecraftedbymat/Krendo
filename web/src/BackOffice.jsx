@@ -111,7 +111,10 @@ function TableauDeBord({ admin, onDeconnexion }) {
             {entreprises.map((e) => (
               <div key={e.id} style={styles.ligneEntreprise} onClick={() => setEntrepriseOuverte(e)}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 15, fontWeight: 700 }}>{e.nom}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700 }}>{e.nom}</div>
+                    {e.compte_gratuit && <span style={styles.badgeGratuit}>Gratuit</span>}
+                  </div>
                   <div style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>{e.nb_utilisateurs} utilisateur(s) actif(s)</div>
                 </div>
                 <select
@@ -153,6 +156,9 @@ function DetailEntreprise({ entreprise, onFermer, onSupprimee, onChange }) {
   const [chargement, setChargement] = useState(true);
   const [formulaireOuvert, setFormulaireOuvert] = useState(false);
   const [suppressionOuverte, setSuppressionOuverte] = useState(false);
+  const [compteGratuit, setCompteGratuit] = useState(entreprise.compte_gratuit);
+  const [note, setNote] = useState(entreprise.note_interne || '');
+  const [noteModifiee, setNoteModifiee] = useState(false);
 
   useEffect(() => { charger(); }, []);
 
@@ -168,6 +174,19 @@ function DetailEntreprise({ entreprise, onFermer, onSupprimee, onChange }) {
     } finally {
       setChargement(false);
     }
+  }
+
+  async function basculerGratuit() {
+    const nouveau = !compteGratuit;
+    setCompteGratuit(nouveau);
+    await apiPlateforme.majEntreprise(entreprise.id, { compte_gratuit: nouveau });
+    onChange();
+  }
+
+  async function enregistrerNote() {
+    await apiPlateforme.majEntreprise(entreprise.id, { note_interne: note || null });
+    setNoteModifiee(false);
+    onChange();
   }
 
   async function changerRole(userId, role_id) {
@@ -195,11 +214,37 @@ function DetailEntreprise({ entreprise, onFermer, onSupprimee, onChange }) {
           <div>
             <h2 style={{ fontSize: 20, margin: 0 }}>{entreprise.nom}</h2>
             <span style={{ ...styles.badgeStatut, ...statutStyle(entreprise.statut_abonnement) }}>{entreprise.statut_abonnement}</span>
+            {compteGratuit && <span style={{ ...styles.badgeStatut, ...styles.badgeGratuit, marginLeft: 6 }}>Gratuit</span>}
           </div>
           <button style={styles.fermer} onClick={onFermer}>✕</button>
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div style={styles.blocFacturation}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div>
+              <p style={{ fontSize: 12.5, fontWeight: 700, margin: 0 }}>Compte gratuit / partenaire</p>
+              <p style={{ fontSize: 11.5, color: 'var(--text-secondary)', margin: '2px 0 0' }}>
+                {compteGratuit ? "Cette entreprise ne sera jamais facturée automatiquement." : "Facturation normale (une fois la facturation automatique en place)."}
+              </p>
+            </div>
+            <Interrupteur actif={compteGratuit} onClick={basculerGratuit} />
+          </div>
+
+          <label style={{ display: 'block', marginTop: 14 }}>
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-secondary)' }}>Note interne (visible uniquement par toi)</span>
+            <textarea
+              style={styles.textarea}
+              value={note}
+              onChange={(e) => { setNote(e.target.value); setNoteModifiee(true); }}
+              placeholder="Ex : partenariat, client pilote, connaissance..."
+            />
+          </label>
+          {noteModifiee && (
+            <button style={styles.boutonSecondaire} onClick={enregistrerNote}>Enregistrer la note</button>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginTop: 20 }}>
           <p style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-secondary)', margin: 0 }}>Comptes ({utilisateurs.length})</p>
           <button style={styles.boutonSecondaire} onClick={() => setFormulaireOuvert(true)}>+ Ajouter un compte</button>
         </div>
@@ -361,6 +406,14 @@ function ConfirmationSuppression({ entreprise, onFermer, onSupprime }) {
   );
 }
 
+function Interrupteur({ actif, onClick }) {
+  return (
+    <button onClick={onClick} style={{ ...styles.interrupteur, background: actif ? 'var(--emerald)' : 'var(--border)' }}>
+      <span style={{ ...styles.interrupteurRond, transform: actif ? 'translateX(18px)' : 'translateX(2px)' }} />
+    </button>
+  );
+}
+
 function statutStyle(statut) {
   const map = {
     essai: { background: 'var(--amber-soft)', color: 'var(--amber)' },
@@ -494,5 +547,23 @@ const styles = {
   boutonDanger: {
     background: 'var(--red)', color: 'white', border: 'none', borderRadius: 'var(--radius-sm)',
     padding: '10px 16px', fontWeight: 700, fontSize: 13,
+  },
+  badgeGratuit: {
+    fontSize: 10.5, fontWeight: 700, background: 'var(--emerald-soft)', color: 'var(--emerald)',
+    padding: '3px 8px', borderRadius: 5,
+  },
+  blocFacturation: {
+    background: 'var(--canvas)', borderRadius: 'var(--radius-md)', padding: 16,
+  },
+  textarea: {
+    width: '100%', marginTop: 6, padding: '9px 11px', borderRadius: 'var(--radius-sm)', border: '1.5px solid var(--border)',
+    fontSize: 12.5, outline: 'none', minHeight: 60, resize: 'vertical', fontFamily: 'var(--font-body)', boxSizing: 'border-box',
+  },
+  interrupteur: {
+    width: 40, height: 22, borderRadius: 11, border: 'none', position: 'relative', flexShrink: 0, padding: 0,
+    outline: 'none', boxShadow: 'none', WebkitAppearance: 'none', appearance: 'none', overflow: 'hidden',
+  },
+  interrupteurRond: {
+    position: 'absolute', top: 2, width: 18, height: 18, borderRadius: '50%', background: 'white', transition: 'transform 0.15s',
   },
 };

@@ -11,11 +11,15 @@ CREATE TABLE IF NOT EXISTS entreprises (
   statut_abonnement TEXT NOT NULL DEFAULT 'essai' CHECK(statut_abonnement IN ('essai','actif','suspendu','resilie')),
   jours_travailles TEXT NOT NULL DEFAULT '1,2,3,4,5',
   travaille_jours_feries BOOLEAN NOT NULL DEFAULT FALSE,
+  compte_gratuit BOOLEAN NOT NULL DEFAULT FALSE,
+  note_interne TEXT,
   cree_le TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS jours_travailles TEXT NOT NULL DEFAULT '1,2,3,4,5';
 ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS travaille_jours_feries BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS compte_gratuit BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS note_interne TEXT;
 
 CREATE TABLE IF NOT EXISTS jours_exceptionnels (
   id SERIAL PRIMARY KEY,
