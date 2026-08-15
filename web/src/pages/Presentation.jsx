@@ -126,6 +126,7 @@ export default function Presentation() {
         <a href="mailto:alainbiloba@gmail.com" style={styles.boutonCtaFinal}>
           alainbiloba@gmail.com <ArrowUpRight size={16} strokeWidth={2.5} />
         </a>
+        <a href="tel:+32784805050" style={styles.lienTelephone}>ou appelez le 078 480 50 50</a>
       </section>
 
       <footer style={styles.pied}>
@@ -138,6 +139,7 @@ export default function Presentation() {
             <Link to="/cgu" style={styles.piedLien}>CGU</Link>
             <Link to="/confidentialite" style={styles.piedLien}>Confidentialité</Link>
             <a href="mailto:alainbiloba@gmail.com" style={styles.piedLien}>alainbiloba@gmail.com</a>
+            <a href="tel:+32784805050" style={styles.piedLien}>078 480 50 50</a>
           </div>
         </div>
       </footer>
@@ -285,6 +287,9 @@ const styles = {
   boutonCtaFinal: {
     display: 'inline-flex', alignItems: 'center', gap: 8, background: 'var(--emerald)', color: 'white', textDecoration: 'none',
     borderRadius: 9, padding: '14px 24px', fontWeight: 700, fontSize: 15,
+  },
+  lienTelephone: {
+    display: 'block', marginTop: 16, color: 'rgba(255,255,255,0.55)', fontSize: 13.5, textDecoration: 'none',
   },
 
   pied: { background: 'var(--ink)', padding: '30px 32px', borderTop: '1px solid rgba(255,255,255,0.08)' },
