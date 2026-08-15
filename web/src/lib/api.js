@@ -131,6 +131,7 @@ export const apiPlateforme = {
   entreprises: () => requetePlateforme('/plateforme/entreprises'),
   creerEntreprise: (donnees) => requetePlateforme('/plateforme/entreprises', { method: 'POST', body: JSON.stringify(donnees) }),
   majEntreprise: (id, champs) => requetePlateforme(`/plateforme/entreprises/${id}`, { method: 'PATCH', body: JSON.stringify(champs) }),
+  genererLienPaiement: (id) => requetePlateforme(`/plateforme/entreprises/${id}/checkout`, { method: 'POST' }),
   supprimerEntreprise: (id, confirmation_nom) =>
     requetePlateforme(`/plateforme/entreprises/${id}`, { method: 'DELETE', body: JSON.stringify({ confirmation_nom }) }),
 

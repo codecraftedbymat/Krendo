@@ -224,7 +224,7 @@ function DetailEntreprise({ entreprise, onFermer, onSupprimee, onChange }) {
             <div>
               <p style={{ fontSize: 12.5, fontWeight: 700, margin: 0 }}>Compte gratuit / partenaire</p>
               <p style={{ fontSize: 11.5, color: 'var(--text-secondary)', margin: '2px 0 0' }}>
-                {compteGratuit ? "Cette entreprise ne sera jamais facturée automatiquement." : "Facturation normale (une fois la facturation automatique en place)."}
+                {compteGratuit ? "Cette entreprise ne sera jamais facturée automatiquement." : "Facturation normale via Stripe (3€ / employé actif / mois)."}
               </p>
             </div>
             <Interrupteur actif={compteGratuit} onClick={basculerGratuit} />
@@ -241,6 +241,15 @@ function DetailEntreprise({ entreprise, onFermer, onSupprimee, onChange }) {
           </label>
           {noteModifiee && (
             <button style={styles.boutonSecondaire} onClick={enregistrerNote}>Enregistrer la note</button>
+          )}
+
+          {!compteGratuit && !entreprise.stripe_subscription_id && (
+            <BoutonLienPaiement entrepriseId={entreprise.id} />
+          )}
+          {entreprise.stripe_subscription_id && (
+            <p style={{ fontSize: 11.5, color: 'var(--emerald)', fontWeight: 700, marginTop: 14 }}>
+              ✓ Abonnement Stripe actif pour cette entreprise
+            </p>
           )}
         </div>
 
@@ -402,6 +411,53 @@ function ConfirmationSuppression({ entreprise, onFermer, onSupprime }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function BoutonLienPaiement({ entrepriseId }) {
+  const [lien, setLien] = useState(null);
+  const [chargement, setChargement] = useState(false);
+  const [erreur, setErreur] = useState('');
+  const [copie, setCopie] = useState(false);
+
+  async function generer() {
+    setChargement(true);
+    setErreur('');
+    try {
+      const { url } = await apiPlateforme.genererLienPaiement(entrepriseId);
+      setLien(url);
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setChargement(false);
+    }
+  }
+
+  function copier() {
+    navigator.clipboard.writeText(lien);
+    setCopie(true);
+    setTimeout(() => setCopie(false), 2000);
+  }
+
+  return (
+    <div style={{ marginTop: 16 }}>
+      {!lien ? (
+        <button style={styles.boutonSecondaire} onClick={generer} disabled={chargement}>
+          {chargement ? 'Génération...' : '💳 Générer un lien de paiement'}
+        </button>
+      ) : (
+        <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 10, padding: 10 }}>
+          <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '0 0 6px', fontWeight: 600 }}>
+            Lien à envoyer à votre client :
+          </p>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input readOnly value={lien} style={{ ...styles.input, fontSize: 11, flex: 1 }} onFocus={(e) => e.target.select()} />
+            <button type="button" style={styles.boutonSecondaire} onClick={copier}>{copie ? 'Copié !' : 'Copier'}</button>
+          </div>
+        </div>
+      )}
+      {erreur && <div style={{ ...styles.erreur, marginTop: 8 }}>{erreur}</div>}
     </div>
   );
 }
