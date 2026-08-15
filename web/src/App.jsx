@@ -25,7 +25,7 @@ export default function App() {
           <Route path="/" element={<Missions utilisateur={session.utilisateur} />} />
           <Route path="/planning" element={<Planning />} />
           <Route path="/heures" element={<Heures utilisateur={session.utilisateur} />} />
-          <Route path="/absences" element={<Absences />} />
+          <Route path="/absences" element={<Absences utilisateur={session.utilisateur} />} />
           <Route path="/messages" element={<Chat utilisateur={session.utilisateur} />} />
           <Route path="/equipe" element={<Equipe utilisateur={session.utilisateur} />} />
           <Route path="/parametres" element={<Parametres />} />

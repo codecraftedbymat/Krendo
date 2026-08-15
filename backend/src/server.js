@@ -163,12 +163,32 @@ app.post('/api/missions/:id/repondre', authentifier, async (req, res) => {
 
 // ============ ABSENCES ============
 app.post('/api/absences', authentifier, async (req, res) => {
-  const { date_debut, heure_debut, date_fin, heure_fin, motif } = req.body;
+  const { utilisateur_id, date_debut, heure_debut, date_fin, heure_fin, motif } = req.body;
+
+  const { rows: [role] } = await pool.query('SELECT * FROM roles WHERE id = $1', [req.utilisateur.role_id]);
+  const peutGererPourAutrui = role.peut_valider_absences || role.peut_voir_tout;
+
+  // Un admin habilité peut déclarer une absence pour un autre employé : elle est directement acceptée.
+  // Sinon, c'est une demande de l'employé pour lui-même, en attente de validation.
+  const cibleId = (utilisateur_id && peutGererPourAutrui) ? utilisateur_id : req.utilisateur.id;
+  const estDeclarationAdmin = utilisateur_id && utilisateur_id !== req.utilisateur.id && peutGererPourAutrui;
+  const statut = estDeclarationAdmin ? 'acceptee' : 'en_attente';
+  const traitePar = estDeclarationAdmin ? req.utilisateur.id : null;
+
   const { rows: [absence] } = await pool.query(
-    `INSERT INTO absences (entreprise_id, utilisateur_id, date_debut, heure_debut, date_fin, heure_fin, motif) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-    [req.utilisateur.entreprise_id, req.utilisateur.id, date_debut, heure_debut, date_fin, heure_fin, motif]
+    `INSERT INTO absences (entreprise_id, utilisateur_id, date_debut, heure_debut, date_fin, heure_fin, motif, statut, traite_par_utilisateur_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id`,
+    [req.utilisateur.entreprise_id, cibleId, date_debut, heure_debut, date_fin, heure_fin, motif, statut, traitePar]
   );
-  res.status(201).json({ id: absence.id });
+
+  if (estDeclarationAdmin) {
+    await pool.query(
+      `INSERT INTO notifications (utilisateur_id, type, titre, contenu, lien_id) VALUES ($1,$2,$3,$4,$5)`,
+      [cibleId, 'absence_traitee', 'Une absence a été enregistrée pour vous', `Du ${date_debut} au ${date_fin}${motif ? ` — ${motif}` : ''}`, absence.id]
+    );
+  }
+
+  res.status(201).json({ id: absence.id, statut });
 });
 
 app.get('/api/absences', authentifier, async (req, res) => {
