@@ -80,6 +80,24 @@ export default function Parametres() {
         </div>
       </div>
 
+      <div style={styles.bloc}>
+        <p style={styles.blocTitre}>Heures maximum par semaine</p>
+        <p style={styles.blocDescription}>
+          Krendo vous alertera (sans bloquer) si un employé dépasse ce seuil ou n'a pas 11h de repos entre deux missions —
+          des repères courants du droit du travail belge, à adapter selon votre secteur et votre commission paritaire.
+        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input
+            type="number" min="1" max="60"
+            style={{ ...styles.jourBouton, width: 70, textAlign: 'center' }}
+            value={donnees.heures_max_semaine}
+            onChange={(e) => setDonnees((d) => ({ ...d, heures_max_semaine: e.target.value }))}
+            onBlur={(e) => api.majParametres({ heures_max_semaine: Number(e.target.value) }).then(charger)}
+          />
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>heures / semaine</span>
+        </div>
+      </div>
+
       <SectionExceptions donnees={donnees} onChange={charger} />
 
       {enregistrement && <p style={styles.enregistrement}>Enregistrement...</p>}

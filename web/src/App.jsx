@@ -6,6 +6,7 @@ import CGU from './pages/CGU';
 import Confidentialite from './pages/Confidentialite';
 import Presentation from './pages/Presentation';
 import Missions from './pages/Missions';
+import Statistiques from './pages/Statistiques';
 import Planning from './pages/Planning';
 import Heures from './pages/Heures';
 import Absences from './pages/Absences';
@@ -57,6 +58,7 @@ function EspaceAdmin({ utilisateur }) {
     <Layout utilisateur={utilisateur}>
       <Routes>
         <Route path="/" element={<Missions utilisateur={utilisateur} />} />
+        <Route path="/statistiques" element={<Statistiques />} />
         <Route path="/planning" element={<Planning />} />
         <Route path="/heures" element={<Heures utilisateur={utilisateur} />} />
         <Route path="/absences" element={<Absences utilisateur={utilisateur} />} />

@@ -74,6 +74,7 @@ export const api = {
     a.remove();
     URL.revokeObjectURL(url);
   },
+  statistiques: (mois) => requete(`/statistiques${mois ? `?mois=${mois}` : ''}`),
   definirCreneau: (missionId, utilisateurId, creneau) =>
     requete(`/missions/${missionId}/creneaux/${utilisateurId}`, { method: 'PUT', body: JSON.stringify(creneau) }),
   majMission: (missionId, champs) => requete(`/missions/${missionId}`, { method: 'PATCH', body: JSON.stringify(champs) }),

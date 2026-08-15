@@ -228,6 +228,61 @@ function ajouterJours(dateISO, jours) {
   return d.toISOString().slice(0, 10);
 }
 
+// Vérifie le respect (souple, à titre indicatif) de quelques règles courantes du droit du
+// travail belge : repos minimum de 11h entre deux prestations, et heures max/semaine
+// (configurable par entreprise, car de nombreuses exceptions sectorielles existent en Belgique
+// — Krendo n'impose donc rien, il alerte simplement l'admin qui reste décisionnaire).
+async function verifierReglesTravail(entrepriseId, utilisateurId, missionId, heureDebut, heureFin) {
+  const avertissements = [];
+
+  const { rows: [entreprise] } = await pool.query('SELECT heures_max_semaine FROM entreprises WHERE id = $1', [entrepriseId]);
+  const { rows: [mission] } = await pool.query('SELECT date_debut, date_fin FROM missions WHERE id = $1', [missionId]);
+  if (!mission) return avertissements;
+
+  // Repos de 11h : cherche les créneaux d'autres missions du même employé la veille/le lendemain
+  const dateVeille = ajouterJours(mission.date_debut, -1);
+  const dateLendemain = ajouterJours(mission.date_fin, 1);
+  const { rows: creneauxProches } = await pool.query(
+    `SELECT c.heure_debut, c.heure_fin, m.date_debut, m.date_fin, m.titre
+     FROM creneaux c JOIN missions m ON c.mission_id = m.id
+     WHERE c.utilisateur_id = $1 AND m.id != $2
+       AND m.date_debut BETWEEN $3 AND $4`,
+    [utilisateurId, missionId, dateVeille, dateLendemain]
+  );
+  for (const c of creneauxProches) {
+    const finActuel = new Date(`${mission.date_fin}T${heureFin}`);
+    const debutAutre = new Date(`${c.date_debut}T${c.heure_debut}`);
+    const finAutre = new Date(`${c.date_fin}T${c.heure_fin}`);
+    const debutActuel = new Date(`${mission.date_debut}T${heureDebut}`);
+
+    const ecart1 = (debutAutre - finActuel) / 3600000;
+    const ecart2 = (debutActuel - finAutre) / 3600000;
+    if ((ecart1 >= 0 && ecart1 < 11) || (ecart2 >= 0 && ecart2 < 11)) {
+      avertissements.push(`Moins de 11h de repos entre cette mission et "${c.titre}" pour cet employé.`);
+    }
+  }
+
+  // Heures max/semaine : somme des créneaux de la semaine ISO contenant la mission
+  const dateMission = new Date(mission.date_debut + 'T00:00:00');
+  const jourSemaine = (dateMission.getDay() + 6) % 7; // lundi = 0
+  const lundi = ajouterJours(mission.date_debut, -jourSemaine);
+  const dimanche = ajouterJours(lundi, 6);
+
+  const { rows: [{ total }] } = await pool.query(
+    `SELECT COALESCE(SUM(EXTRACT(EPOCH FROM (c.heure_fin::time - c.heure_debut::time)) / 3600.0), 0) as total
+     FROM creneaux c JOIN missions m ON c.mission_id = m.id
+     WHERE c.utilisateur_id = $1 AND m.date_debut BETWEEN $2 AND $3`,
+    [utilisateurId, lundi, dimanche]
+  );
+  const heuresNouveau = (new Date(`2000-01-01T${heureFin}`) - new Date(`2000-01-01T${heureDebut}`)) / 3600000;
+  const totalSemaine = Number(total) + heuresNouveau;
+  if (totalSemaine > entreprise.heures_max_semaine) {
+    avertissements.push(`Cet employé dépasserait ${entreprise.heures_max_semaine}h cette semaine (${Math.round(totalSemaine * 10) / 10}h au total).`);
+  }
+
+  return avertissements;
+}
+
 app.post('/api/missions', authentifier, requiresPermission('peut_creer_missions'), async (req, res) => {
   const { titre, lieu, date_debut, heure_debut, date_fin, heure_fin, nb_employes_requis, description, recurrence } = req.body;
 
@@ -537,6 +592,68 @@ app.get('/api/creneaux/export-csv', authentifier, requiresPermission('peut_valid
   res.send(csv);
 });
 
+// Statistiques du mois pour le tableau de bord admin : heures par employé, taux de
+// remplissage des missions, résumé des absences.
+app.get('/api/statistiques', authentifier, async (req, res) => {
+  const { rows: [role] } = await pool.query('SELECT * FROM roles WHERE id = $1', [req.utilisateur.role_id]);
+  const estAdmin = role.peut_creer_missions || role.peut_valider_absences || role.peut_valider_heures || role.peut_modifier_creneaux || role.peut_gerer_comptes || role.peut_voir_tout;
+  if (!estAdmin) return res.status(403).json({ erreur: "Vous n'avez pas les droits pour cette action" });
+
+  const mois = req.query.mois || new Date().toISOString().slice(0, 7); // "YYYY-MM"
+  const debutMois = `${mois}-01`;
+
+  const { rows: heuresParEmploye } = await pool.query(
+    `SELECT u.id, u.prenom, u.nom,
+       SUM(EXTRACT(EPOCH FROM (c.heure_fin::time - c.heure_debut::time)) / 3600.0) as heures
+     FROM creneaux c
+     JOIN utilisateurs u ON c.utilisateur_id = u.id
+     JOIN missions m ON c.mission_id = m.id
+     WHERE m.entreprise_id = $1 AND c.statut_validation = 'valide'
+       AND to_char(m.date_debut::date, 'YYYY-MM') = $2
+     GROUP BY u.id, u.prenom, u.nom
+     ORDER BY heures DESC`,
+    [req.utilisateur.entreprise_id, mois]
+  );
+
+  const { rows: missionsDuMois } = await pool.query(
+    `SELECT m.id, m.titre, m.date_debut, m.nb_employes_requis,
+       (SELECT COUNT(*) FROM mission_reponses mr WHERE mr.mission_id = m.id AND mr.statut = 'disponible') as nb_disponibles
+     FROM missions m
+     WHERE m.entreprise_id = $1 AND to_char(m.date_debut::date, 'YYYY-MM') = $2
+     ORDER BY m.date_debut`,
+    [req.utilisateur.entreprise_id, mois]
+  );
+
+  const { rows: absencesResume } = await pool.query(
+    `SELECT statut, COUNT(*) as total FROM absences
+     WHERE entreprise_id = $1 AND to_char(date_debut::date, 'YYYY-MM') = $2
+     GROUP BY statut`,
+    [req.utilisateur.entreprise_id, mois]
+  );
+
+  const totalHeures = heuresParEmploye.reduce((s, e) => s + Number(e.heures), 0);
+  const tauxRemplissageMoyen = missionsDuMois.length
+    ? missionsDuMois.reduce((s, m) => s + Math.min(Number(m.nb_disponibles) / m.nb_employes_requis, 1), 0) / missionsDuMois.length
+    : 0;
+
+  res.json({
+    mois,
+    total_heures: Math.round(totalHeures * 10) / 10,
+    heures_par_employe: heuresParEmploye.map((e) => ({ ...e, heures: Math.round(Number(e.heures) * 10) / 10 })),
+    nb_missions: missionsDuMois.length,
+    taux_remplissage_moyen: Math.round(tauxRemplissageMoyen * 100),
+    missions: missionsDuMois.map((m) => ({
+      ...m,
+      taux_remplissage: Math.round((Number(m.nb_disponibles) / m.nb_employes_requis) * 100),
+    })),
+    absences: {
+      en_attente: Number(absencesResume.find((a) => a.statut === 'en_attente')?.total || 0),
+      acceptee: Number(absencesResume.find((a) => a.statut === 'acceptee')?.total || 0),
+      refusee: Number(absencesResume.find((a) => a.statut === 'refusee')?.total || 0),
+    },
+  });
+});
+
 // Crée ou modifie le créneau d'un employé sur une mission (admin uniquement)
 app.put('/api/missions/:id/creneaux/:utilisateurId', authentifier, requiresPermission('peut_modifier_creneaux'), async (req, res) => {
   const { heure_debut, heure_fin, poste, est_heure_supplementaire, motif } = req.body;
@@ -555,7 +672,12 @@ app.put('/api/missions/:id/creneaux/:utilisateurId', authentifier, requiresPermi
     sujet: 'Votre créneau a été modifié sur Krendo',
     contenuHtml: modelesEmail.creneauModifie(emp.prenom, heure_debut, heure_fin),
   }).catch(() => {});
-  res.status(201).json({ id: creneau.id });
+
+  const avertissements = await verifierReglesTravail(
+    req.utilisateur.entreprise_id, req.params.utilisateurId, req.params.id, heure_debut, heure_fin
+  ).catch(() => []);
+
+  res.status(201).json({ id: creneau.id, avertissements });
 });
 
 app.delete('/api/creneaux/:id', authentifier, requiresPermission('peut_modifier_creneaux'), async (req, res) => {
@@ -662,7 +784,7 @@ app.post('/api/conversations/:id/messages', authentifier, async (req, res) => {
 // ============ PARAMÈTRES ENTREPRISE (jours travaillés, jours fériés) ============
 app.get('/api/parametres', authentifier, async (req, res) => {
   const { rows: [entreprise] } = await pool.query(
-    'SELECT nom, jours_travailles, travaille_jours_feries, statut_abonnement, compte_gratuit, fonctionnalites_premium FROM entreprises WHERE id = $1',
+    'SELECT nom, jours_travailles, travaille_jours_feries, statut_abonnement, compte_gratuit, fonctionnalites_premium, heures_max_semaine FROM entreprises WHERE id = $1',
     [req.utilisateur.entreprise_id]
   );
   const { rows: exceptions } = await pool.query(
@@ -702,12 +824,13 @@ app.post('/api/mon-entreprise/checkout', authentifier, requiresPermission('peut_
 });
 
 app.patch('/api/parametres', authentifier, requiresPermission('peut_gerer_comptes'), async (req, res) => {
-  const { jours_travailles, travaille_jours_feries } = req.body;
+  const { jours_travailles, travaille_jours_feries, heures_max_semaine } = req.body;
   const champs = [];
   const valeurs = [];
   let i = 1;
   if (jours_travailles !== undefined) { champs.push(`jours_travailles = $${i++}`); valeurs.push(jours_travailles); }
   if (travaille_jours_feries !== undefined) { champs.push(`travaille_jours_feries = $${i++}`); valeurs.push(travaille_jours_feries); }
+  if (heures_max_semaine !== undefined) { champs.push(`heures_max_semaine = $${i++}`); valeurs.push(heures_max_semaine); }
   if (champs.length === 0) return res.status(400).json({ erreur: 'Rien à mettre à jour' });
   valeurs.push(req.utilisateur.entreprise_id);
   await pool.query(`UPDATE entreprises SET ${champs.join(', ')} WHERE id = $${i}`, valeurs);

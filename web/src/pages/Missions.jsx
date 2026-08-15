@@ -245,6 +245,7 @@ function SectionHeures({ mission, reponses, peutModifier, peutValider, onChat })
   const [creneaux, setCreneaux] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [edition, setEdition] = useState(null);
+  const [avertissements, setAvertissements] = useState([]);
 
   useEffect(() => { charger(); }, [mission.id]);
 
@@ -269,6 +270,11 @@ function SectionHeures({ mission, reponses, peutModifier, peutValider, onChat })
 
   return (
     <div style={styles.listeReponses}>
+      {avertissements.length > 0 && (
+        <div style={styles.blocAvertissement}>
+          {avertissements.map((a, i) => <p key={i} style={{ margin: i ? '4px 0 0' : 0 }}>⚠ {a}</p>)}
+        </div>
+      )}
       {reponses.map((r) => {
         const creneau = creneauDe(r.utilisateur_id);
         return (
@@ -287,7 +293,7 @@ function SectionHeures({ mission, reponses, peutModifier, peutValider, onChat })
                 utilisateurId={r.utilisateur_id}
                 initial={creneau}
                 onAnnuler={() => setEdition(null)}
-                onEnregistre={() => { setEdition(null); charger(); }}
+                onEnregistre={(nouveauxAvertissements) => { setEdition(null); setAvertissements(nouveauxAvertissements); charger(); }}
               />
             ) : creneau ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -326,11 +332,11 @@ function FormulaireCreneau({ mission, utilisateurId, initial, onAnnuler, onEnreg
   const [heureSup, setHeureSup] = useState(false);
 
   async function enregistrer() {
-    await api.definirCreneau(mission.id, utilisateurId, {
+    const resultat = await api.definirCreneau(mission.id, utilisateurId, {
       heure_debut: heureDebut, heure_fin: heureFin, poste: poste || null,
       est_heure_supplementaire: heureSup,
     });
-    onEnregistre();
+    onEnregistre(resultat?.avertissements || []);
   }
 
   return (
@@ -606,6 +612,10 @@ const styles = {
   boutonMiniAnnuler: {
     background: 'var(--canvas)', color: 'var(--text-secondary)', border: '1px solid var(--border)', borderRadius: 6,
     padding: '5px 10px', fontSize: 11.5, fontWeight: 700,
+  },
+  blocAvertissement: {
+    background: 'var(--amber-soft)', color: '#8A6416', padding: '10px 12px', borderRadius: 'var(--radius-sm)',
+    fontSize: 12, fontWeight: 600, marginBottom: 4,
   },
   formGrille: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 },
   input: {

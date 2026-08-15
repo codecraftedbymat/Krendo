@@ -4,6 +4,7 @@ import BandeauAbonnement from './BandeauAbonnement';
 
 const liens = [
   { to: '/', label: 'Missions', icon: '📋' },
+  { to: '/statistiques', label: 'Statistiques', icon: '📊' },
   { to: '/planning', label: 'Planning', icon: '📅' },
   { to: '/heures', label: 'Heures', icon: '⏱️' },
   { to: '/absences', label: 'Absences', icon: '🗓️' },
