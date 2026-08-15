@@ -654,6 +654,34 @@ app.patch('/api/plateforme/entreprises/:id', authentifierPlateforme, async (req,
   res.json({ ok: true });
 });
 
+app.post('/api/mon-mot-de-passe', authentifier, async (req, res) => {
+  const { mot_de_passe_actuel, nouveau_mot_de_passe } = req.body;
+  if (!nouveau_mot_de_passe || nouveau_mot_de_passe.length < 6) {
+    return res.status(400).json({ erreur: 'Le nouveau mot de passe doit contenir au moins 6 caractères.' });
+  }
+  const { rows: [user] } = await pool.query('SELECT * FROM utilisateurs WHERE id = $1', [req.utilisateur.id]);
+  if (!bcrypt.compareSync(mot_de_passe_actuel, user.mot_de_passe_hash)) {
+    return res.status(401).json({ erreur: 'Mot de passe actuel incorrect.' });
+  }
+  const hash = bcrypt.hashSync(nouveau_mot_de_passe, 10);
+  await pool.query('UPDATE utilisateurs SET mot_de_passe_hash = $1 WHERE id = $2', [hash, req.utilisateur.id]);
+  res.json({ ok: true });
+});
+
+// ============ NOTIFICATIONS ============
+app.get('/api/notifications', authentifier, async (req, res) => {
+  const { rows } = await pool.query(
+    'SELECT * FROM notifications WHERE utilisateur_id = $1 ORDER BY cree_le DESC LIMIT 50',
+    [req.utilisateur.id]
+  );
+  res.json(rows);
+});
+
+app.patch('/api/notifications/:id', authentifier, async (req, res) => {
+  await pool.query('UPDATE notifications SET lu = TRUE WHERE id = $1 AND utilisateur_id = $2', [req.params.id, req.utilisateur.id]);
+  res.json({ ok: true });
+});
+
 app.get('/api/sante', (req, res) => res.json({ ok: true }));
 
 const PORT = process.env.PORT || 3001;

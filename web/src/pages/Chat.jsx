@@ -291,7 +291,7 @@ function PieceJointe({ nom, type, data, estMoi }) {
 }
 
 const styles = {
-  page: { display: 'flex', height: 'calc(100vh - 64px)', gap: 20, margin: '-32px -40px', padding: '32px 40px' },
+  page: { display: 'flex', height: 'calc(100vh - 180px)', minHeight: 420, gap: 16 },
   colonneListe: { width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column' },
   listeEntete: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   boutonNouveau: {

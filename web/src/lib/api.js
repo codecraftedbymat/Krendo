@@ -24,10 +24,19 @@ async function requete(chemin, options = {}) {
 export const api = {
   connexion: (email, mot_de_passe) =>
     requete('/connexion', { method: 'POST', body: JSON.stringify({ email, mot_de_passe }) }),
+  motDePasseOublie: (email) => requete('/mot-de-passe-oublie', { method: 'POST', body: JSON.stringify({ email }) }),
+  reinitialiserMotDePasse: (token, nouveau_mot_de_passe) =>
+    requete('/reinitialiser-mot-de-passe', { method: 'POST', body: JSON.stringify({ token, nouveau_mot_de_passe }) }),
 
   missions: () => requete('/missions'),
   creerMission: (mission) => requete('/missions', { method: 'POST', body: JSON.stringify(mission) }),
   reponsesMission: (missionId) => requete(`/missions/${missionId}/reponses`),
+  repondreMission: (missionId, statut, commentaire) =>
+    requete(`/missions/${missionId}/repondre`, { method: 'POST', body: JSON.stringify({ statut, commentaire }) }),
+  notifications: () => requete('/notifications'),
+  marquerNotificationLue: (id) => requete(`/notifications/${id}`, { method: 'PATCH' }),
+  changerMonMotDePasse: (mot_de_passe_actuel, nouveau_mot_de_passe) =>
+    requete('/mon-mot-de-passe', { method: 'POST', body: JSON.stringify({ mot_de_passe_actuel, nouveau_mot_de_passe }) }),
 
   absences: () => requete('/absences'),
   creerAbsence: (absence) => requete('/absences', { method: 'POST', body: JSON.stringify(absence) }),
@@ -78,4 +87,49 @@ export function chargerSession() {
 export function effacerSession() {
   localStorage.removeItem('krendo_token');
   localStorage.removeItem('krendo_utilisateur');
+}
+
+// ============ BACK-OFFICE (gestion multi-clients, session séparée) ============
+function getTokenPlateforme() {
+  return localStorage.getItem('krendo_plateforme_token');
+}
+
+async function requetePlateforme(chemin, options = {}) {
+  const token = getTokenPlateforme();
+  const res = await fetch(`${API_URL}${chemin}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...options.headers,
+    },
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(data.erreur || 'Une erreur est survenue');
+  return data;
+}
+
+export const apiPlateforme = {
+  connexion: (email, mot_de_passe) =>
+    requetePlateforme('/plateforme/connexion', { method: 'POST', body: JSON.stringify({ email, mot_de_passe }) }),
+  entreprises: () => requetePlateforme('/plateforme/entreprises'),
+  creerEntreprise: (donnees) => requetePlateforme('/plateforme/entreprises', { method: 'POST', body: JSON.stringify(donnees) }),
+  majEntreprise: (id, champs) => requetePlateforme(`/plateforme/entreprises/${id}`, { method: 'PATCH', body: JSON.stringify(champs) }),
+};
+
+export function sauvegarderSessionPlateforme(token, admin) {
+  localStorage.setItem('krendo_plateforme_token', token);
+  localStorage.setItem('krendo_plateforme_admin', JSON.stringify(admin));
+}
+
+export function chargerSessionPlateforme() {
+  const token = getTokenPlateforme();
+  const admin = localStorage.getItem('krendo_plateforme_admin');
+  if (!token || !admin) return null;
+  return { token, admin: JSON.parse(admin) };
+}
+
+export function effacerSessionPlateforme() {
+  localStorage.removeItem('krendo_plateforme_token');
+  localStorage.removeItem('krendo_plateforme_admin');
 }
