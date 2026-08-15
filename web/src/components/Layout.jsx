@@ -1,25 +1,29 @@
 import { NavLink } from 'react-router-dom';
 import { effacerSession } from '../lib/api';
 import BandeauAbonnement from './BandeauAbonnement';
+import SelecteurLangue from './SelecteurLangue';
+import { useTranslation } from '../LangueContext';
 
-const liens = [
-  { to: '/', label: 'Missions', icon: '📋' },
-  { to: '/statistiques', label: 'Statistiques', icon: '📊' },
-  { to: '/planning', label: 'Planning', icon: '📅' },
-  { to: '/heures', label: 'Heures', icon: '⏱️' },
-  { to: '/absences', label: 'Absences', icon: '🗓️' },
-  { to: '/messages', label: 'Messages', icon: '💬' },
-  { to: '/equipe', label: 'Équipe', icon: '👥' },
+const cleLiens = [
+  { to: '/', cle: 'nav_missions', icon: '📋' },
+  { to: '/statistiques', cle: 'nav_statistiques', icon: '📊' },
+  { to: '/planning', cle: 'nav_planning', icon: '📅' },
+  { to: '/heures', cle: 'nav_heures', icon: '⏱️' },
+  { to: '/absences', cle: 'nav_absences', icon: '🗓️' },
+  { to: '/messages', cle: 'nav_messages', icon: '💬' },
+  { to: '/equipe', cle: 'nav_equipe', icon: '👥' },
 ];
 
 export default function Layout({ utilisateur, children }) {
+  const { t } = useTranslation();
+
   function deconnexion() {
     effacerSession();
     window.location.href = '/';
   }
 
   const peutGererComptes = utilisateur.permissions.peut_gerer_comptes || utilisateur.permissions.peut_voir_tout;
-  const tousLiens = peutGererComptes ? [...liens, { to: '/parametres', label: 'Paramètres', icon: '⚙️' }] : liens;
+  const tousLiens = peutGererComptes ? [...cleLiens, { to: '/parametres', cle: 'nav_parametres', icon: '⚙️' }] : cleLiens;
 
   return (
     <div style={styles.page}>
@@ -40,10 +44,14 @@ export default function Layout({ utilisateur, children }) {
                 ...(isActive ? styles.navLinkActif : {}),
               })}
             >
-              <span>{l.icon}</span> {l.label}
+              <span>{l.icon}</span> {t(l.cle)}
             </NavLink>
           ))}
         </nav>
+
+        <div style={{ padding: '0 8px 10px' }}>
+          <SelecteurLangue sombre />
+        </div>
 
         <div style={styles.profil}>
           <div style={styles.avatar}>
@@ -53,7 +61,7 @@ export default function Layout({ utilisateur, children }) {
             <div style={styles.profilNom}>{utilisateur.prenom} {utilisateur.nom}</div>
             <div style={styles.profilRole}>{utilisateur.role}</div>
           </div>
-          <button onClick={deconnexion} style={styles.deconnexion} title="Se déconnecter">⏻</button>
+          <button onClick={deconnexion} style={styles.deconnexion} title={t('deconnexion')}>⏻</button>
         </div>
       </aside>
 

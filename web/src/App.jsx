@@ -20,6 +20,7 @@ import AbsencesEmploye from './pages/employe/AbsencesEmploye';
 import Profil from './pages/employe/Profil';
 import BackOffice from './BackOffice';
 import { chargerSession } from './lib/api';
+import { LangueProvider } from './LangueContext';
 
 function estAdmin(utilisateur) {
   const p = utilisateur.permissions;
@@ -28,16 +29,18 @@ function estAdmin(utilisateur) {
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/reinitialiser" element={<Reinitialiser />} />
-        <Route path="/presentation" element={<Presentation />} />
-        <Route path="/cgu" element={<CGU />} />
-        <Route path="/confidentialite" element={<Confidentialite />} />
-        <Route path="/backoffice/*" element={<BackOffice />} />
-        <Route path="/*" element={<EspaceKrendo />} />
-      </Routes>
-    </BrowserRouter>
+    <LangueProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/reinitialiser" element={<Reinitialiser />} />
+          <Route path="/presentation" element={<Presentation />} />
+          <Route path="/cgu" element={<CGU />} />
+          <Route path="/confidentialite" element={<Confidentialite />} />
+          <Route path="/backoffice/*" element={<BackOffice />} />
+          <Route path="/*" element={<EspaceKrendo />} />
+        </Routes>
+      </BrowserRouter>
+    </LangueProvider>
   );
 }
 

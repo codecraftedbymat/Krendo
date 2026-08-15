@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api, sauvegarderSession } from '../lib/api';
+import { useTranslation } from '../LangueContext';
+import SelecteurLangue from '../components/SelecteurLangue';
 
 export default function Connexion({ onConnecte }) {
   const [mode, setMode] = useState('connexion'); // 'connexion' | 'oublie'
@@ -8,9 +10,12 @@ export default function Connexion({ onConnecte }) {
   return (
     <div style={styles.page}>
       <div style={styles.carte}>
-        <div style={styles.marque}>
-          <div style={styles.logoMark}>K</div>
-          <span style={styles.logoText}>Krendo</span>
+        <div style={styles.enteteCarte}>
+          <div style={styles.marque}>
+            <div style={styles.logoMark}>K</div>
+            <span style={styles.logoText}>Krendo</span>
+          </div>
+          <SelecteurLangue />
         </div>
 
         {mode === 'connexion' ? (
@@ -24,6 +29,7 @@ export default function Connexion({ onConnecte }) {
 }
 
 function FormulaireConnexion({ onConnecte, onMotDePasseOublie }) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [motDePasse, setMotDePasse] = useState('');
   const [erreur, setErreur] = useState('');
@@ -46,11 +52,11 @@ function FormulaireConnexion({ onConnecte, onMotDePasseOublie }) {
 
   return (
     <>
-      <p style={styles.sousTitre}>Connexion à votre espace</p>
+      <p style={styles.sousTitre}>{t('connexion_titre')}</p>
 
       <form onSubmit={handleSubmit} style={styles.form}>
         <label style={styles.label}>
-          Adresse email
+          {t('connexion_email')}
           <input
             type="email"
             value={email}
@@ -62,7 +68,7 @@ function FormulaireConnexion({ onConnecte, onMotDePasseOublie }) {
         </label>
 
         <label style={styles.label}>
-          Mot de passe
+          {t('connexion_mot_de_passe')}
           <input
             type="password"
             value={motDePasse}
@@ -76,11 +82,11 @@ function FormulaireConnexion({ onConnecte, onMotDePasseOublie }) {
         {erreur && <div style={styles.erreur}>{erreur}</div>}
 
         <button type="submit" disabled={chargement} style={styles.bouton}>
-          {chargement ? 'Connexion...' : 'Se connecter'}
+          {chargement ? t('connexion_en_cours') : t('connexion_bouton')}
         </button>
 
         <button type="button" style={styles.lienDiscret} onClick={onMotDePasseOublie}>
-          Mot de passe oublié ?
+          {t('connexion_mot_de_passe_oublie')}
         </button>
       </form>
 
@@ -94,6 +100,7 @@ function FormulaireConnexion({ onConnecte, onMotDePasseOublie }) {
 }
 
 function FormulaireMotDePasseOublie({ onRetour }) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [envoye, setEnvoye] = useState(false);
   const [chargement, setChargement] = useState(false);
@@ -116,17 +123,17 @@ function FormulaireMotDePasseOublie({ onRetour }) {
         <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.5, marginBottom: 24 }}>
           Si un compte existe avec l'adresse <strong>{email}</strong>, un lien de réinitialisation vient de lui être envoyé. Il est valable 1 heure.
         </p>
-        <button type="button" style={styles.bouton} onClick={onRetour}>Retour à la connexion</button>
+        <button type="button" style={styles.bouton} onClick={onRetour}>{t('reinitialiser_retour')}</button>
       </>
     );
   }
 
   return (
     <>
-      <p style={styles.sousTitre}>Réinitialiser votre mot de passe</p>
+      <p style={styles.sousTitre}>{t('reinitialiser_titre')}</p>
       <form onSubmit={handleSubmit} style={styles.form}>
         <label style={styles.label}>
-          Adresse email
+          {t('connexion_email')}
           <input
             type="email"
             value={email}
@@ -137,7 +144,7 @@ function FormulaireMotDePasseOublie({ onRetour }) {
           />
         </label>
         <button type="submit" disabled={chargement} style={styles.bouton}>
-          {chargement ? 'Envoi...' : 'Envoyer le lien de réinitialisation'}
+          {chargement ? 'Envoi...' : t('reinitialiser_bouton')}
         </button>
         <button type="button" style={styles.lienDiscret} onClick={onRetour}>
           Retour à la connexion
@@ -165,11 +172,16 @@ const styles = {
     maxWidth: 380,
     boxShadow: '0 20px 60px rgba(0,0,0,0.35)',
   },
+  enteteCarte: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
   marque: {
     display: 'flex',
     alignItems: 'center',
     gap: 10,
-    marginBottom: 4,
   },
   logoMark: {
     width: 34,

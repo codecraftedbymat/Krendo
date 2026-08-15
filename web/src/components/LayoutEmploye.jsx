@@ -1,14 +1,18 @@
 import { NavLink } from 'react-router-dom';
 import { effacerSession } from '../lib/api';
+import SelecteurLangue from './SelecteurLangue';
+import { useTranslation } from '../LangueContext';
 
-const liens = [
-  { to: '/', label: 'Missions', icon: '📋' },
-  { to: '/absences', label: 'Absences', icon: '🗓️' },
-  { to: '/messages', label: 'Messages', icon: '💬' },
-  { to: '/profil', label: 'Profil', icon: '👤' },
+const cleLiens = [
+  { to: '/', cle: 'nav_missions', icon: '📋' },
+  { to: '/absences', cle: 'nav_absences', icon: '🗓️' },
+  { to: '/messages', cle: 'nav_messages', icon: '💬' },
+  { to: '/profil', cle: 'nav_profil', icon: '👤' },
 ];
 
 export default function LayoutEmploye({ utilisateur, children }) {
+  const { t } = useTranslation();
+
   function deconnexion() {
     effacerSession();
     window.location.href = '/';
@@ -22,15 +26,16 @@ export default function LayoutEmploye({ utilisateur, children }) {
           <span style={styles.logoText}>Krendo</span>
         </div>
         <div style={styles.profil}>
+          <SelecteurLangue />
           <div style={styles.avatar}>{utilisateur.prenom[0]}{utilisateur.nom[0]}</div>
-          <button onClick={deconnexion} style={styles.deconnexion} title="Se déconnecter">⏻</button>
+          <button onClick={deconnexion} style={styles.deconnexion} title={t('deconnexion')}>⏻</button>
         </div>
       </header>
 
       <main style={styles.contenu}>{children}</main>
 
       <nav style={styles.navBas}>
-        {liens.map((l) => (
+        {cleLiens.map((l) => (
           <NavLink
             key={l.to}
             to={l.to}
@@ -38,7 +43,7 @@ export default function LayoutEmploye({ utilisateur, children }) {
             style={({ isActive }) => ({ ...styles.navLien, ...(isActive ? styles.navLienActif : {}) })}
           >
             <span style={{ fontSize: 18 }}>{l.icon}</span>
-            <span style={{ fontSize: 10.5, fontWeight: 600 }}>{l.label}</span>
+            <span style={{ fontSize: 10.5, fontWeight: 600 }}>{t(l.cle)}</span>
           </NavLink>
         ))}
       </nav>
