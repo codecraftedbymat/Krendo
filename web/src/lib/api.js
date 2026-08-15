@@ -32,6 +32,8 @@ export const api = {
   absences: () => requete('/absences'),
   creerAbsence: (absence) => requete('/absences', { method: 'POST', body: JSON.stringify(absence) }),
   traiterAbsence: (id, statut) => requete(`/absences/${id}`, { method: 'PATCH', body: JSON.stringify({ statut }) }),
+  majAbsence: (id, champs) => requete(`/absences/${id}`, { method: 'PATCH', body: JSON.stringify(champs) }),
+  supprimerAbsence: (id) => requete(`/absences/${id}`, { method: 'DELETE' }),
 
   utilisateurs: () => requete('/utilisateurs'),
   creerUtilisateur: (u) => requete('/utilisateurs', { method: 'POST', body: JSON.stringify(u) }),

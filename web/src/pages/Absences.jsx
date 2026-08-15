@@ -5,6 +5,7 @@ export default function Absences({ utilisateur }) {
   const [absences, setAbsences] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [formulaireOuvert, setFormulaireOuvert] = useState(false);
+  const [absenceOuverte, setAbsenceOuverte] = useState(null);
 
   const peutGererPourAutrui = utilisateur.permissions.peut_valider_absences || utilisateur.permissions.peut_voir_tout;
 
@@ -19,7 +20,8 @@ export default function Absences({ utilisateur }) {
     }
   }
 
-  async function traiter(id, statut) {
+  async function traiter(e, id, statut) {
+    e.stopPropagation();
     await api.traiterAbsence(id, statut);
     charger();
   }
@@ -32,7 +34,7 @@ export default function Absences({ utilisateur }) {
       <div style={styles.entete}>
         <div>
           <h1 style={styles.titre}>Absences</h1>
-          <p style={styles.sousTitre}>Validez les demandes d'absence de votre équipe.</p>
+          <p style={styles.sousTitre}>Validez les demandes d'absence de votre équipe. Cliquez sur une ligne pour la modifier ou la supprimer.</p>
         </div>
         {peutGererPourAutrui && (
           <button style={styles.boutonPrincipal} onClick={() => setFormulaireOuvert(true)}>
@@ -50,7 +52,7 @@ export default function Absences({ utilisateur }) {
               <p style={styles.sectionLabel}>En attente ({enAttente.length})</p>
               <div style={styles.liste}>
                 {enAttente.map((a) => (
-                  <div key={a.id} style={styles.ligne}>
+                  <div key={a.id} style={styles.ligne} onClick={() => peutGererPourAutrui && setAbsenceOuverte(a)}>
                     <div style={styles.avatarPetit}>{a.prenom[0]}{a.nom[0]}</div>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13.5, fontWeight: 600 }}>{a.prenom} {a.nom}</div>
@@ -60,8 +62,8 @@ export default function Absences({ utilisateur }) {
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button style={styles.boutonAccepter} onClick={() => traiter(a.id, 'acceptee')}>Accepter</button>
-                      <button style={styles.boutonRefuser} onClick={() => traiter(a.id, 'refusee')}>Refuser</button>
+                      <button style={styles.boutonAccepter} onClick={(e) => traiter(e, a.id, 'acceptee')}>Accepter</button>
+                      <button style={styles.boutonRefuser} onClick={(e) => traiter(e, a.id, 'refusee')}>Refuser</button>
                     </div>
                   </div>
                 ))}
@@ -75,7 +77,7 @@ export default function Absences({ utilisateur }) {
           ) : (
             <div style={styles.liste}>
               {traitees.map((a) => (
-                <div key={a.id} style={styles.ligne}>
+                <div key={a.id} style={styles.ligne} onClick={() => peutGererPourAutrui && setAbsenceOuverte(a)}>
                   <div style={styles.avatarPetit}>{a.prenom[0]}{a.nom[0]}</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 600 }}>{a.prenom} {a.nom}</div>
@@ -104,6 +106,106 @@ export default function Absences({ utilisateur }) {
           onCree={() => { setFormulaireOuvert(false); charger(); }}
         />
       )}
+
+      {absenceOuverte && (
+        <DetailAbsence
+          absence={absenceOuverte}
+          onFermer={() => setAbsenceOuverte(null)}
+          onMaj={() => { setAbsenceOuverte(null); charger(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function DetailAbsence({ absence, onFermer, onMaj }) {
+  const [champ, setChamp] = useState({
+    date_debut: absence.date_debut, heure_debut: absence.heure_debut,
+    date_fin: absence.date_fin, heure_fin: absence.heure_fin, motif: absence.motif || '',
+  });
+  const [erreur, setErreur] = useState('');
+  const [envoi, setEnvoi] = useState(false);
+
+  function set(nomChamp, valeur) {
+    setChamp((c) => ({ ...c, [nomChamp]: valeur }));
+  }
+
+  async function enregistrer(e) {
+    e.preventDefault();
+    setErreur('');
+    setEnvoi(true);
+    try {
+      await api.majAbsence(absence.id, champ);
+      onMaj();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setEnvoi(false);
+    }
+  }
+
+  async function supprimer() {
+    const confirmation = window.confirm(`Supprimer définitivement cette absence de ${absence.prenom} ${absence.nom} ?`);
+    if (!confirmation) return;
+    setEnvoi(true);
+    try {
+      await api.supprimerAbsence(absence.id);
+      onMaj();
+    } finally {
+      setEnvoi(false);
+    }
+  }
+
+  return (
+    <div style={styles.overlay} onClick={onFermer}>
+      <form style={styles.panneau} onClick={(e) => e.stopPropagation()} onSubmit={enregistrer}>
+        <div style={styles.panneauEntete}>
+          <div>
+            <h2 style={styles.panneauTitre}>{absence.prenom} {absence.nom}</h2>
+            <span style={{
+              ...styles.badge,
+              background: absence.statut === 'acceptee' ? 'var(--emerald-soft)' : absence.statut === 'refusee' ? 'var(--red-soft)' : 'var(--amber-soft)',
+              color: absence.statut === 'acceptee' ? 'var(--emerald)' : absence.statut === 'refusee' ? 'var(--red)' : 'var(--amber)',
+            }}>
+              {absence.statut === 'acceptee' ? 'Acceptée' : absence.statut === 'refusee' ? 'Refusée' : 'En attente'}
+            </span>
+          </div>
+          <button type="button" style={styles.fermer} onClick={onFermer}>✕</button>
+        </div>
+
+        <div style={styles.formGrille}>
+          <label style={styles.champLabel}>
+            <span style={styles.champTexte}>Début</span>
+            <input required type="date" style={styles.input} value={champ.date_debut} onChange={(e) => set('date_debut', e.target.value)} />
+          </label>
+          <label style={styles.champLabel}>
+            <span style={styles.champTexte}>Heure</span>
+            <input required type="time" style={styles.input} value={champ.heure_debut} onChange={(e) => set('heure_debut', e.target.value)} />
+          </label>
+          <label style={styles.champLabel}>
+            <span style={styles.champTexte}>Fin</span>
+            <input required type="date" style={styles.input} value={champ.date_fin} onChange={(e) => set('date_fin', e.target.value)} />
+          </label>
+          <label style={styles.champLabel}>
+            <span style={styles.champTexte}>Heure</span>
+            <input required type="time" style={styles.input} value={champ.heure_fin} onChange={(e) => set('heure_fin', e.target.value)} />
+          </label>
+        </div>
+
+        <label style={styles.champLabel}>
+          <span style={styles.champTexte}>Motif</span>
+          <input style={styles.input} value={champ.motif} onChange={(e) => set('motif', e.target.value)} />
+        </label>
+
+        {erreur && <div style={styles.erreurForm}>{erreur}</div>}
+
+        <button type="submit" disabled={envoi} style={styles.boutonPrincipalLarge}>
+          {envoi ? 'Enregistrement...' : 'Enregistrer les modifications'}
+        </button>
+        <button type="button" disabled={envoi} style={styles.boutonSupprimerLarge} onClick={supprimer}>
+          Supprimer cette absence
+        </button>
+      </form>
     </div>
   );
 }
@@ -216,7 +318,7 @@ const styles = {
   ligne: {
     display: 'flex', alignItems: 'center', gap: 12,
     background: 'var(--card)', border: '1px solid var(--border)',
-    borderRadius: 'var(--radius-md)', padding: '12px 14px',
+    borderRadius: 'var(--radius-md)', padding: '12px 14px', cursor: 'pointer',
   },
   avatarPetit: {
     width: 32, height: 32, borderRadius: '50%', background: 'var(--emerald-soft)', color: 'var(--emerald)',
@@ -253,6 +355,10 @@ const styles = {
   boutonPrincipalLarge: {
     background: 'var(--emerald)', color: 'white', border: 'none', borderRadius: 'var(--radius-sm)',
     padding: '13px', fontWeight: 700, fontSize: 14, marginTop: 6,
+  },
+  boutonSupprimerLarge: {
+    background: 'var(--red-soft)', color: 'var(--red)', border: 'none', borderRadius: 'var(--radius-sm)',
+    padding: '11px', fontWeight: 700, fontSize: 13,
   },
   erreurForm: {
     background: 'var(--red-soft)', color: 'var(--red)', padding: '10px 12px',

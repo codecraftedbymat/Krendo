@@ -200,13 +200,38 @@ app.get('/api/absences', authentifier, async (req, res) => {
 });
 
 app.patch('/api/absences/:id', authentifier, requiresPermission('peut_valider_absences'), async (req, res) => {
-  const { statut } = req.body;
-  await pool.query(`UPDATE absences SET statut = $1, traite_par_utilisateur_id = $2 WHERE id = $3`, [statut, req.utilisateur.id, req.params.id]);
-  const { rows: [absence] } = await pool.query('SELECT * FROM absences WHERE id = $1', [req.params.id]);
-  await pool.query(
-    `INSERT INTO notifications (utilisateur_id, type, titre, contenu, lien_id) VALUES ($1,$2,$3,$4,$5)`,
-    [absence.utilisateur_id, 'absence_traitee', `Demande d'absence ${statut === 'acceptee' ? 'acceptée' : 'refusée'}`, `Du ${absence.date_debut} au ${absence.date_fin}`, absence.id]
-  );
+  const { statut, date_debut, heure_debut, date_fin, heure_fin, motif } = req.body;
+  const champs = [];
+  const valeurs = [];
+  let i = 1;
+  const ajouter = (nom, valeur) => { if (valeur !== undefined) { champs.push(`${nom} = $${i++}`); valeurs.push(valeur); } };
+  ajouter('date_debut', date_debut);
+  ajouter('heure_debut', heure_debut);
+  ajouter('date_fin', date_fin);
+  ajouter('heure_fin', heure_fin);
+  ajouter('motif', motif);
+  if (statut !== undefined) {
+    champs.push(`statut = $${i++}`);
+    valeurs.push(statut);
+    champs.push(`traite_par_utilisateur_id = $${i++}`);
+    valeurs.push(req.utilisateur.id);
+  }
+  if (champs.length === 0) return res.status(400).json({ erreur: 'Rien à mettre à jour' });
+  valeurs.push(req.params.id);
+  await pool.query(`UPDATE absences SET ${champs.join(', ')} WHERE id = $${i}`, valeurs);
+
+  if (statut !== undefined) {
+    const { rows: [absence] } = await pool.query('SELECT * FROM absences WHERE id = $1', [req.params.id]);
+    await pool.query(
+      `INSERT INTO notifications (utilisateur_id, type, titre, contenu, lien_id) VALUES ($1,$2,$3,$4,$5)`,
+      [absence.utilisateur_id, 'absence_traitee', `Demande d'absence ${statut === 'acceptee' ? 'acceptée' : 'refusée'}`, `Du ${absence.date_debut} au ${absence.date_fin}`, absence.id]
+    );
+  }
+  res.json({ ok: true });
+});
+
+app.delete('/api/absences/:id', authentifier, requiresPermission('peut_valider_absences'), async (req, res) => {
+  await pool.query('DELETE FROM absences WHERE id = $1 AND entreprise_id = $2', [req.params.id, req.utilisateur.entreprise_id]);
   res.json({ ok: true });
 });
 
