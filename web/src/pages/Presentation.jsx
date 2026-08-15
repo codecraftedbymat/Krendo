@@ -14,7 +14,7 @@ export default function Presentation() {
 
       <section style={styles.hero}>
         <div style={styles.heroGauche}>
-          <p style={styles.eyebrow}>Planification d'équipe — Belgique</p>
+          <p style={styles.eyebrow}>Gestion de planning d'équipe</p>
           <h1 style={styles.titreHero}>
             Le planning de<br />votre équipe,<br /><span style={styles.titreAccent}>à la minute près.</span>
           </h1>
