@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import crypto from 'crypto';
@@ -8,7 +9,25 @@ import { pool, initDb } from './db.js';
 import { envoyerEmail, modelesEmail } from './email.js';
 
 const app = express();
-app.use(cors());
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: 'cross-origin' }, // nécessaire pour servir les pièces jointes/images au frontend
+}));
+
+// CORS restreint aux seuls domaines Krendo (site web admin/employé + éventuel domaine personnalisé)
+const originesAutorisees = (process.env.ORIGINES_AUTORISEES || '')
+  .split(',')
+  .map((o) => o.trim())
+  .filter(Boolean);
+
+app.use(cors({
+  origin(origin, callback) {
+    // Autorise les appels sans origine (ex: Postman, tests serveur à serveur) et les origines listées
+    if (!origin || originesAutorisees.length === 0 || originesAutorisees.includes(origin)) {
+      return callback(null, true);
+    }
+    callback(new Error('Origine non autorisée par CORS'));
+  },
+}));
 app.use(express.json({ limit: '8mb' }));
 
 // Anti brute-force : limite les tentatives de connexion (8 essais / 15 min / IP)
@@ -101,17 +120,16 @@ app.get('/api/missions', authentifier, async (req, res) => {
   res.json(rows);
 });
 
-app.post('/api/missions', authentifier, requiresPermission('peut_creer_missions'), async (req, res) => {
-  const { titre, lieu, date_debut, heure_debut, date_fin, heure_fin, nb_employes_requis, description } = req.body;
+async function creerUneMission(entrepriseId, creePar, { titre, lieu, date_debut, heure_debut, date_fin, heure_fin, nb_employes_requis, description }) {
   const { rows: [mission] } = await pool.query(
     `INSERT INTO missions (entreprise_id, titre, lieu, date_debut, heure_debut, date_fin, heure_fin, nb_employes_requis, description, cree_par_utilisateur_id)
      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
-    [req.utilisateur.entreprise_id, titre, lieu, date_debut, heure_debut, date_fin, heure_fin, nb_employes_requis, description, req.utilisateur.id]
+    [entrepriseId, titre, lieu, date_debut, heure_debut, date_fin, heure_fin, nb_employes_requis, description, creePar]
   );
 
   const { rows: employes } = await pool.query(
     `SELECT u.id, u.email, u.prenom FROM utilisateurs u JOIN roles r ON u.role_id = r.id WHERE u.entreprise_id = $1 AND r.nom = 'Employé' AND u.actif = TRUE`,
-    [req.utilisateur.entreprise_id]
+    [entrepriseId]
   );
   for (const emp of employes) {
     await pool.query(
@@ -127,9 +145,37 @@ app.post('/api/missions', authentifier, requiresPermission('peut_creer_missions'
       sujet: 'Nouvelle mission disponible sur Krendo',
       contenuHtml: modelesEmail.nouvelleMission(emp.prenom, titre),
     }).catch(() => {});
-    // -> ici viendra l'envoi réel de l'email
   }
-  res.status(201).json({ id: mission.id, notifies: employes.length });
+  return { id: mission.id, notifies: employes.length };
+}
+
+function ajouterJours(dateISO, jours) {
+  const d = new Date(dateISO + 'T00:00:00');
+  d.setDate(d.getDate() + jours);
+  return d.toISOString().slice(0, 10);
+}
+
+app.post('/api/missions', authentifier, requiresPermission('peut_creer_missions'), async (req, res) => {
+  const { titre, lieu, date_debut, heure_debut, date_fin, heure_fin, nb_employes_requis, description, recurrence } = req.body;
+
+  const nbOccurrences = recurrence?.repeter_chaque_semaine
+    ? Math.min(Math.max(Number(recurrence.nombre_occurrences) || 1, 1), 52)
+    : 1;
+
+  const resultats = [];
+  for (let i = 0; i < nbOccurrences; i++) {
+    const decalage = i * 7;
+    resultats.push(await creerUneMission(req.utilisateur.entreprise_id, req.utilisateur.id, {
+      titre, lieu,
+      date_debut: ajouterJours(date_debut, decalage),
+      heure_debut,
+      date_fin: ajouterJours(date_fin, decalage),
+      heure_fin,
+      nb_employes_requis, description,
+    }));
+  }
+
+  res.status(201).json({ id: resultats[0].id, notifies: resultats[0].notifies, occurrences_creees: resultats.length });
 });
 
 app.patch('/api/missions/:id', authentifier, requiresPermission('peut_creer_missions'), async (req, res) => {
@@ -382,6 +428,38 @@ app.get('/api/creneaux', authentifier, async (req, res) => {
     [req.utilisateur.entreprise_id]
   );
   res.json(rows);
+});
+
+// Export CSV des heures validées, pour la paie. Filtrable par période (?debut=YYYY-MM-DD&fin=YYYY-MM-DD)
+app.get('/api/creneaux/export-csv', authentifier, requiresPermission('peut_valider_heures'), async (req, res) => {
+  const { debut, fin } = req.query;
+  const conditions = ['m.entreprise_id = $1', "c.statut_validation = 'valide'"];
+  const valeurs = [req.utilisateur.entreprise_id];
+  let i = 2;
+  if (debut) { conditions.push(`m.date_debut >= $${i++}`); valeurs.push(debut); }
+  if (fin) { conditions.push(`m.date_debut <= $${i++}`); valeurs.push(fin); }
+
+  const { rows } = await pool.query(
+    `SELECT u.prenom, u.nom, m.titre as mission, m.date_debut, c.heure_debut, c.heure_fin, c.poste, c.est_heure_supplementaire
+     FROM creneaux c
+     JOIN utilisateurs u ON c.utilisateur_id = u.id
+     JOIN missions m ON c.mission_id = m.id
+     WHERE ${conditions.join(' AND ')}
+     ORDER BY u.prenom, m.date_debut`,
+    valeurs
+  );
+
+  const entetes = ['Prénom', 'Nom', 'Mission', 'Date', 'Heure début', 'Heure fin', 'Poste', 'Heure supplémentaire'];
+  const echapper = (val) => `"${String(val ?? '').replace(/"/g, '""')}"`;
+  const lignes = rows.map((r) => [
+    r.prenom, r.nom, r.mission, r.date_debut, r.heure_debut, r.heure_fin, r.poste || '', r.est_heure_supplementaire ? 'Oui' : 'Non',
+  ].map(echapper).join(';'));
+
+  const csv = '\uFEFF' + [entetes.map(echapper).join(';'), ...lignes].join('\r\n');
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="heures_${new Date().toISOString().slice(0, 10)}.csv"`);
+  res.send(csv);
 });
 
 // Crée ou modifie le créneau d'un employé sur une mission (admin uniquement)

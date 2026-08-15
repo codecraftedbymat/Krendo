@@ -2,6 +2,9 @@ import { useState } from 'react';
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import Connexion from './pages/Connexion';
 import Reinitialiser from './pages/Reinitialiser';
+import CGU from './pages/CGU';
+import Confidentialite from './pages/Confidentialite';
+import Presentation from './pages/Presentation';
 import Missions from './pages/Missions';
 import Planning from './pages/Planning';
 import Heures from './pages/Heures';
@@ -27,6 +30,9 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/reinitialiser" element={<Reinitialiser />} />
+        <Route path="/presentation" element={<Presentation />} />
+        <Route path="/cgu" element={<CGU />} />
+        <Route path="/confidentialite" element={<Confidentialite />} />
         <Route path="/backoffice/*" element={<BackOffice />} />
         <Route path="/*" element={<EspaceKrendo />} />
       </Routes>

@@ -57,6 +57,22 @@ export const api = {
 
   creneauxMission: (missionId) => requete(`/missions/${missionId}/creneaux`),
   tousLesCreneaux: () => requete('/creneaux'),
+  exporterHeuresCsv: async () => {
+    const token = getToken();
+    const res = await fetch(`${API_URL}/creneaux/export-csv`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) throw new Error("Impossible d'exporter les heures.");
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `heures_${new Date().toISOString().slice(0, 10)}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  },
   definirCreneau: (missionId, utilisateurId, creneau) =>
     requete(`/missions/${missionId}/creneaux/${utilisateurId}`, { method: 'PUT', body: JSON.stringify(creneau) }),
   majMission: (missionId, champs) => requete(`/missions/${missionId}`, { method: 'PATCH', body: JSON.stringify(champs) }),

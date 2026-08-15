@@ -398,6 +398,8 @@ function FormulaireMission({ missionExistante, onFermer, onCree }) {
     titre: '', lieu: '', date_debut: '', heure_debut: '08:00',
     date_fin: '', heure_fin: '18:00', nb_employes_requis: 1, description: '',
   });
+  const [recurrente, setRecurrente] = useState(false);
+  const [nbOccurrences, setNbOccurrences] = useState(4);
   const [erreur, setErreur] = useState('');
   const [envoi, setEnvoi] = useState(false);
 
@@ -414,6 +416,9 @@ function FormulaireMission({ missionExistante, onFermer, onCree }) {
       if (missionExistante) {
         await api.majMission(missionExistante.id, donnees);
       } else {
+        if (recurrente) {
+          donnees.recurrence = { repeter_chaque_semaine: true, nombre_occurrences: Number(nbOccurrences) };
+        }
         await api.creerMission(donnees);
       }
       onCree();
@@ -459,10 +464,28 @@ function FormulaireMission({ missionExistante, onFermer, onCree }) {
           </Champ>
         </div>
 
+        {!missionExistante && (
+          <div style={styles.blocRecurrence}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600 }}>
+              <input type="checkbox" checked={recurrente} onChange={(e) => setRecurrente(e.target.checked)} />
+              Répéter cette mission chaque semaine
+            </label>
+            {recurrente && (
+              <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10, fontSize: 12.5 }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Nombre de semaines (dont celle-ci) :</span>
+                <input
+                  type="number" min="2" max="52" style={{ ...styles.input, width: 70 }}
+                  value={nbOccurrences} onChange={(e) => setNbOccurrences(e.target.value)}
+                />
+              </label>
+            )}
+          </div>
+        )}
+
         {erreur && <div style={styles.erreurForm}>{erreur}</div>}
 
         <button type="submit" disabled={envoi} style={styles.boutonPrincipalLarge}>
-          {envoi ? 'Enregistrement...' : missionExistante ? 'Enregistrer les modifications' : 'Créer et notifier l\'équipe'}
+          {envoi ? 'Enregistrement...' : missionExistante ? 'Enregistrer les modifications' : recurrente ? `Créer ${nbOccurrences} missions et notifier l'équipe` : 'Créer et notifier l\'équipe'}
         </button>
       </form>
     </div>

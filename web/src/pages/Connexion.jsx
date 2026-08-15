@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api, sauvegarderSession } from '../lib/api';
 
 export default function Connexion({ onConnecte }) {
@@ -85,6 +86,11 @@ function FormulaireConnexion({ onConnecte, onMotDePasseOublie }) {
 
       <p style={styles.note}>
         Pas de compte ? Seul un administrateur peut vous en créer un.
+      </p>
+      <p style={styles.liensLegaux}>
+        <Link to="/cgu" style={styles.lienLegal}>CGU</Link>
+        <span> · </span>
+        <Link to="/confidentialite" style={styles.lienLegal}>Confidentialité</Link>
       </p>
     </>
   );
@@ -243,5 +249,15 @@ const styles = {
     fontSize: 12.5,
     color: 'var(--text-muted)',
     textAlign: 'center',
+  },
+  liensLegaux: {
+    marginTop: 10,
+    fontSize: 11.5,
+    color: 'var(--text-muted)',
+    textAlign: 'center',
+  },
+  lienLegal: {
+    color: 'var(--text-muted)',
+    textDecoration: 'underline',
   },
 };

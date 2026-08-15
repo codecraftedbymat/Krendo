@@ -6,6 +6,7 @@ export default function Heures({ utilisateur }) {
   const [chargement, setChargement] = useState(true);
   const [edition, setEdition] = useState(null);
   const [filtre, setFiltre] = useState('en_attente');
+  const [export_, setExport] = useState(false);
 
   const peutValider = utilisateur.permissions.peut_valider_heures || utilisateur.permissions.peut_voir_tout;
   const peutModifier = utilisateur.permissions.peut_modifier_creneaux || utilisateur.permissions.peut_voir_tout;
@@ -21,12 +22,30 @@ export default function Heures({ utilisateur }) {
     }
   }
 
+  async function exporter() {
+    setExport(true);
+    try {
+      await api.exporterHeuresCsv();
+    } finally {
+      setExport(false);
+    }
+  }
+
   const filtres = creneaux.filter((c) => filtre === 'tous' || c.statut_validation === filtre);
 
   return (
     <div>
-      <h1 style={styles.titre}>Heures</h1>
-      <p style={styles.sousTitre}>Validez ou modifiez les heures de toute l'équipe, tous chantiers confondus.</p>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+        <div>
+          <h1 style={styles.titre}>Heures</h1>
+          <p style={styles.sousTitre}>Validez ou modifiez les heures de toute l'équipe, tous chantiers confondus.</p>
+        </div>
+        {peutValider && (
+          <button style={styles.boutonExport} onClick={exporter} disabled={export_}>
+            {export_ ? 'Export...' : '⬇ Exporter en CSV (heures validées)'}
+          </button>
+        )}
+      </div>
 
       <div style={styles.filtres}>
         {[
@@ -138,6 +157,10 @@ function formatDate(iso) {
 const styles = {
   titre: { fontSize: 26 },
   sousTitre: { color: 'var(--text-secondary)', fontSize: 14, margin: '6px 0 20px' },
+  boutonExport: {
+    background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
+    padding: '9px 14px', fontSize: 12.5, fontWeight: 700, color: 'var(--text-primary)', whiteSpace: 'nowrap',
+  },
   filtres: { display: 'flex', gap: 6, marginBottom: 20 },
   filtreBouton: {
     background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 20,
