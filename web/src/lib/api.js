@@ -52,7 +52,7 @@ export const api = {
 
   parametres: () => requete('/parametres'),
   majParametres: (champs) => requete('/parametres', { method: 'PATCH', body: JSON.stringify(champs) }),
-  genererLienPaiementMonEntreprise: () => requete('/mon-entreprise/checkout', { method: 'POST' }),
+  genererLienPaiementMonEntreprise: (plan) => requete('/mon-entreprise/checkout', { method: 'POST', body: JSON.stringify({ plan }) }),
   ajouterJourExceptionnel: (jour) => requete('/jours-exceptionnels', { method: 'POST', body: JSON.stringify(jour) }),
   supprimerJourExceptionnel: (id) => requete(`/jours-exceptionnels/${id}`, { method: 'DELETE' }),
 
@@ -132,7 +132,7 @@ export const apiPlateforme = {
   entreprises: () => requetePlateforme('/plateforme/entreprises'),
   creerEntreprise: (donnees) => requetePlateforme('/plateforme/entreprises', { method: 'POST', body: JSON.stringify(donnees) }),
   majEntreprise: (id, champs) => requetePlateforme(`/plateforme/entreprises/${id}`, { method: 'PATCH', body: JSON.stringify(champs) }),
-  genererLienPaiement: (id) => requetePlateforme(`/plateforme/entreprises/${id}/checkout`, { method: 'POST' }),
+  genererLienPaiement: (id, plan) => requetePlateforme(`/plateforme/entreprises/${id}/checkout`, { method: 'POST', body: JSON.stringify({ plan }) }),
   supprimerEntreprise: (id, confirmation_nom) =>
     requetePlateforme(`/plateforme/entreprises/${id}`, { method: 'DELETE', body: JSON.stringify({ confirmation_nom }) }),
 

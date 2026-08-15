@@ -669,6 +669,7 @@ app.post('/api/mon-entreprise/checkout', authentifier, requiresPermission('peut_
       emailAdmin: moi.email,
       quantite: Number(count),
       urlBase: process.env.FRONTEND_URL || 'https://krendo-web-production-a8b0.up.railway.app',
+      plan: req.body?.plan === 'annuel' ? 'annuel' : 'mensuel',
     });
 
     res.json({ url: session.url });
@@ -806,13 +807,14 @@ app.post('/api/plateforme/entreprises', authentifierPlateforme, async (req, res)
 });
 
 app.patch('/api/plateforme/entreprises/:id', authentifierPlateforme, async (req, res) => {
-  const { statut_abonnement, compte_gratuit, note_interne } = req.body;
+  const { statut_abonnement, compte_gratuit, note_interne, date_fin_abonnement } = req.body;
   const champs = [];
   const valeurs = [];
   let i = 1;
   if (statut_abonnement !== undefined) { champs.push(`statut_abonnement = $${i++}`); valeurs.push(statut_abonnement); }
   if (compte_gratuit !== undefined) { champs.push(`compte_gratuit = $${i++}`); valeurs.push(compte_gratuit); }
   if (note_interne !== undefined) { champs.push(`note_interne = $${i++}`); valeurs.push(note_interne); }
+  if (date_fin_abonnement !== undefined) { champs.push(`date_fin_abonnement = $${i++}`); valeurs.push(date_fin_abonnement || null); }
   if (champs.length === 0) return res.status(400).json({ erreur: 'Rien à mettre à jour' });
   valeurs.push(req.params.id);
   await pool.query(`UPDATE entreprises SET ${champs.join(', ')} WHERE id = $${i}`, valeurs);
@@ -932,6 +934,7 @@ app.post('/api/plateforme/entreprises/:id/checkout', authentifierPlateforme, asy
       emailAdmin: admin?.email,
       quantite: Number(count),
       urlBase: process.env.FRONTEND_URL || 'https://krendo-web-production-a8b0.up.railway.app',
+      plan: req.body?.plan === 'annuel' ? 'annuel' : 'mensuel',
     });
 
     res.json({ url: session.url });
@@ -970,11 +973,30 @@ app.patch('/api/notifications/:id', authentifier, async (req, res) => {
 
 app.get('/api/sante', (req, res) => res.json({ ok: true }));
 
+// Vérifie automatiquement les entreprises dont la date de fin d'abonnement (accord ponctuel
+// négocié manuellement) est dépassée, et les suspend automatiquement.
+async function verifierDatesExpiration() {
+  try {
+    const { rows } = await pool.query(
+      `UPDATE entreprises SET statut_abonnement = 'suspendu'
+       WHERE date_fin_abonnement IS NOT NULL AND date_fin_abonnement < CURRENT_DATE AND statut_abonnement = 'actif'
+       RETURNING id, nom`
+    );
+    if (rows.length > 0) {
+      console.log(`Entreprises suspendues automatiquement (date de fin dépassée) : ${rows.map((e) => e.nom).join(', ')}`);
+    }
+  } catch (err) {
+    console.error('Erreur vérification dates d\'expiration:', err.message);
+  }
+}
+
 const PORT = process.env.PORT || 3001;
 
 initDb()
   .then(() => {
     app.listen(PORT, () => console.log(`Serveur backend démarré sur le port ${PORT}`));
+    verifierDatesExpiration();
+    setInterval(verifierDatesExpiration, 60 * 60 * 1000); // toutes les heures
   })
   .catch((err) => {
     console.error('Erreur de connexion à la base de données:', err);

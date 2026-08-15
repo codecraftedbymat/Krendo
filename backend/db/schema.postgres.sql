@@ -22,6 +22,7 @@ ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS compte_gratuit BOOLEAN NOT NULL
 ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS note_interne TEXT;
 ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
 ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
+ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS date_fin_abonnement DATE;
 
 CREATE TABLE IF NOT EXISTS jours_exceptionnels (
   id SERIAL PRIMARY KEY,

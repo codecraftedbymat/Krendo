@@ -159,6 +159,8 @@ function DetailEntreprise({ entreprise, onFermer, onSupprimee, onChange }) {
   const [compteGratuit, setCompteGratuit] = useState(entreprise.compte_gratuit);
   const [note, setNote] = useState(entreprise.note_interne || '');
   const [noteModifiee, setNoteModifiee] = useState(false);
+  const [dateFin, setDateFin] = useState(entreprise.date_fin_abonnement ? entreprise.date_fin_abonnement.slice(0, 10) : '');
+  const [dateFinModifiee, setDateFinModifiee] = useState(false);
 
   useEffect(() => { charger(); }, []);
 
@@ -186,6 +188,12 @@ function DetailEntreprise({ entreprise, onFermer, onSupprimee, onChange }) {
   async function enregistrerNote() {
     await apiPlateforme.majEntreprise(entreprise.id, { note_interne: note || null });
     setNoteModifiee(false);
+    onChange();
+  }
+
+  async function enregistrerDateFin() {
+    await apiPlateforme.majEntreprise(entreprise.id, { date_fin_abonnement: dateFin || null });
+    setDateFinModifiee(false);
     onChange();
   }
 
@@ -241,6 +249,21 @@ function DetailEntreprise({ entreprise, onFermer, onSupprimee, onChange }) {
           </label>
           {noteModifiee && (
             <button style={styles.boutonSecondaire} onClick={enregistrerNote}>Enregistrer la note</button>
+          )}
+
+          <label style={{ display: 'block', marginTop: 14 }}>
+            <span style={{ fontSize: 11.5, fontWeight: 600, color: 'var(--text-secondary)' }}>
+              Date de fin (accord ponctuel — bascule automatiquement en "Suspendu" ce jour-là)
+            </span>
+            <input
+              type="date"
+              style={{ ...styles.input, marginTop: 6, width: 180 }}
+              value={dateFin}
+              onChange={(e) => { setDateFin(e.target.value); setDateFinModifiee(true); }}
+            />
+          </label>
+          {dateFinModifiee && (
+            <button style={{ ...styles.boutonSecondaire, marginTop: 8 }} onClick={enregistrerDateFin}>Enregistrer la date</button>
           )}
 
           {!compteGratuit && !entreprise.stripe_subscription_id && (
@@ -417,6 +440,7 @@ function ConfirmationSuppression({ entreprise, onFermer, onSupprime }) {
 
 function BoutonLienPaiement({ entrepriseId }) {
   const [lien, setLien] = useState(null);
+  const [plan, setPlan] = useState('mensuel');
   const [chargement, setChargement] = useState(false);
   const [erreur, setErreur] = useState('');
   const [copie, setCopie] = useState(false);
@@ -425,7 +449,7 @@ function BoutonLienPaiement({ entrepriseId }) {
     setChargement(true);
     setErreur('');
     try {
-      const { url } = await apiPlateforme.genererLienPaiement(entrepriseId);
+      const { url } = await apiPlateforme.genererLienPaiement(entrepriseId, plan);
       setLien(url);
     } catch (err) {
       setErreur(err.message);
@@ -443,13 +467,27 @@ function BoutonLienPaiement({ entrepriseId }) {
   return (
     <div style={{ marginTop: 16 }}>
       {!lien ? (
-        <button style={styles.boutonSecondaire} onClick={generer} disabled={chargement}>
-          {chargement ? 'Génération...' : '💳 Générer un lien de paiement'}
-        </button>
+        <>
+          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+            <button
+              type="button"
+              style={{ ...styles.togglePlan, ...(plan === 'mensuel' ? styles.togglePlanActif : {}) }}
+              onClick={() => setPlan('mensuel')}
+            >Mensuel</button>
+            <button
+              type="button"
+              style={{ ...styles.togglePlan, ...(plan === 'annuel' ? styles.togglePlanActif : {}) }}
+              onClick={() => setPlan('annuel')}
+            >Annuel (2 mois offerts)</button>
+          </div>
+          <button style={styles.boutonSecondaire} onClick={generer} disabled={chargement}>
+            {chargement ? 'Génération...' : '💳 Générer un lien de paiement'}
+          </button>
+        </>
       ) : (
         <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 10, padding: 10 }}>
           <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '0 0 6px', fontWeight: 600 }}>
-            Lien à envoyer à votre client :
+            Lien à envoyer à votre client ({plan}) :
           </p>
           <div style={{ display: 'flex', gap: 6 }}>
             <input readOnly value={lien} style={{ ...styles.input, fontSize: 11, flex: 1 }} onFocus={(e) => e.target.select()} />
@@ -622,4 +660,9 @@ const styles = {
   interrupteurRond: {
     position: 'absolute', top: 2, width: 18, height: 18, borderRadius: '50%', background: 'white', transition: 'transform 0.15s',
   },
+  togglePlan: {
+    background: 'white', border: '1.5px solid var(--border)', borderRadius: 7, padding: '6px 11px',
+    fontSize: 11.5, fontWeight: 700, color: 'var(--text-secondary)',
+  },
+  togglePlanActif: { background: 'var(--ink)', color: 'white', borderColor: 'var(--ink)' },
 };

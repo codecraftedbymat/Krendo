@@ -15,11 +15,11 @@ export default function BandeauAbonnement({ utilisateur }) {
   if (!parametres || !peutGerer) return null;
   if (!['essai', 'suspendu'].includes(parametres.statut_abonnement) || parametres.compte_gratuit) return null;
 
-  async function payer() {
+  async function payer(plan) {
     setChargement(true);
     setErreur('');
     try {
-      const { url } = await api.genererLienPaiementMonEntreprise();
+      const { url } = await api.genererLienPaiementMonEntreprise(plan);
       window.location.href = url;
     } catch (err) {
       setErreur(err.message);
@@ -41,10 +41,15 @@ export default function BandeauAbonnement({ utilisateur }) {
             : "Passez à l'abonnement pour ne jamais perdre l'accès à votre équipe."}
         </span>
       </div>
-      <button style={styles.bouton} onClick={payer} disabled={chargement}>
-        {chargement ? 'Redirection...' : suspendu ? 'Réactiver mon abonnement' : 'Activer mon abonnement'}
-        {!chargement && <span style={styles.prix}>3€ / employé / mois</span>}
-      </button>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button style={styles.boutonSecondaire} onClick={() => payer('mensuel')} disabled={chargement}>
+          Mensuel <span style={styles.prixSecondaire}>3€/employé</span>
+        </button>
+        <button style={styles.bouton} onClick={() => payer('annuel')} disabled={chargement}>
+          {chargement ? 'Redirection...' : 'Annuel'}
+          {!chargement && <span style={styles.prix}>2 mois offerts</span>}
+        </button>
+      </div>
       {erreur && <span style={styles.erreur}>{erreur}</span>}
     </div>
   );
@@ -64,6 +69,12 @@ const styles = {
     background: 'var(--ink)', color: 'white', border: 'none', borderRadius: 8,
     padding: '9px 16px', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap',
   },
-  prix: { fontSize: 10.5, fontWeight: 600, opacity: 0.65, borderLeft: '1px solid rgba(255,255,255,0.3)', paddingLeft: 8 },
+  boutonSecondaire: {
+    display: 'flex', alignItems: 'center', gap: 6,
+    background: 'white', color: 'var(--ink)', border: '1.5px solid rgba(28,37,54,0.15)', borderRadius: 8,
+    padding: '9px 14px', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap',
+  },
+  prix: { fontSize: 10.5, fontWeight: 600, opacity: 0.75, borderLeft: '1px solid rgba(255,255,255,0.3)', paddingLeft: 8 },
+  prixSecondaire: { fontSize: 10.5, fontWeight: 600, opacity: 0.6 },
   erreur: { fontSize: 11.5, color: 'var(--red)' },
 };

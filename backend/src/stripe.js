@@ -12,19 +12,22 @@ export { stripe };
 
 // Crée une session de paiement Stripe (abonnement) pour une entreprise.
 // La quantité facturée = nombre d'employés actifs au moment de la création.
-export async function creerSessionCheckout({ entrepriseId, nomEntreprise, emailAdmin, quantite, urlBase }) {
+// plan = 'mensuel' (3€/employé/mois) ou 'annuel' (30€/employé/an, soit 2 mois offerts)
+export async function creerSessionCheckout({ entrepriseId, nomEntreprise, emailAdmin, quantite, urlBase, plan = 'mensuel' }) {
   if (!stripe) throw new Error('Stripe non configuré (STRIPE_SECRET_KEY manquante).');
-  if (!process.env.STRIPE_PRICE_ID) throw new Error('STRIPE_PRICE_ID manquant.');
+
+  const priceId = plan === 'annuel' ? process.env.STRIPE_PRICE_ID_ANNUEL : process.env.STRIPE_PRICE_ID_MENSUEL;
+  if (!priceId) throw new Error(`Prix Stripe manquant pour le plan ${plan} (STRIPE_PRICE_ID_${plan === 'annuel' ? 'ANNUEL' : 'MENSUEL'}).`);
 
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
-    line_items: [{ price: process.env.STRIPE_PRICE_ID, quantity: Math.max(quantite, 1) }],
+    line_items: [{ price: priceId, quantity: Math.max(quantite, 1) }],
     customer_email: emailAdmin || undefined,
     success_url: `${urlBase}/backoffice?paiement=succes`,
     cancel_url: `${urlBase}/backoffice?paiement=annule`,
-    metadata: { entreprise_id: String(entrepriseId), entreprise_nom: nomEntreprise },
+    metadata: { entreprise_id: String(entrepriseId), entreprise_nom: nomEntreprise, plan },
     subscription_data: {
-      metadata: { entreprise_id: String(entrepriseId), entreprise_nom: nomEntreprise },
+      metadata: { entreprise_id: String(entrepriseId), entreprise_nom: nomEntreprise, plan },
     },
   });
   return session;
