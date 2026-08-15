@@ -35,11 +35,13 @@ export async function creerSessionCheckout({ entrepriseId, nomEntreprise, emailA
 
 // Met à jour la quantité facturée sur l'abonnement Stripe existant d'une entreprise,
 // pour qu'elle suive le nombre réel d'employés actifs. Ne fait rien si pas d'abonnement Stripe.
+// Mensuel : aucun ajustement immédiat, le changement ne prend effet qu'à la prochaine facture.
+// Annuel : un crédit (ou une charge) au prorata est généré, appliqué sur le renouvellement suivant.
 export async function synchroniserQuantiteStripe(pool, entrepriseId) {
   if (!stripe) return;
   try {
     const { rows: [entreprise] } = await pool.query(
-      'SELECT stripe_subscription_id FROM entreprises WHERE id = $1', [entrepriseId]
+      'SELECT stripe_subscription_id, plan_abonnement FROM entreprises WHERE id = $1', [entrepriseId]
     );
     if (!entreprise?.stripe_subscription_id) return;
 
@@ -53,7 +55,12 @@ export async function synchroniserQuantiteStripe(pool, entrepriseId) {
     const itemId = subscription.items.data[0]?.id;
     if (!itemId) return;
 
-    await stripe.subscriptionItems.update(itemId, { quantity: Math.max(Number(count), 1) });
+    const prorationBehavior = entreprise.plan_abonnement === 'annuel' ? 'create_prorations' : 'none';
+
+    await stripe.subscriptionItems.update(itemId, {
+      quantity: Math.max(Number(count), 1),
+      proration_behavior: prorationBehavior,
+    });
   } catch (err) {
     console.error('Erreur synchronisation quantité Stripe:', err.message);
   }

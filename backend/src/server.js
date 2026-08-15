@@ -49,12 +49,13 @@ app.post('/api/webhook-stripe', express.raw({ type: 'application/json' }), async
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object;
       const entrepriseId = session.metadata?.entreprise_id;
+      const plan = session.metadata?.plan === 'annuel' ? 'annuel' : 'mensuel';
       if (entrepriseId) {
         await pool.query(
-          `UPDATE entreprises SET statut_abonnement = 'actif', stripe_customer_id = $1, stripe_subscription_id = $2 WHERE id = $3`,
-          [session.customer, session.subscription, entrepriseId]
+          `UPDATE entreprises SET statut_abonnement = 'actif', stripe_customer_id = $1, stripe_subscription_id = $2, plan_abonnement = $3 WHERE id = $4`,
+          [session.customer, session.subscription, plan, entrepriseId]
         );
-        console.log(`Entreprise ${entrepriseId} passée en 'actif' suite au paiement Stripe.`);
+        console.log(`Entreprise ${entrepriseId} passée en 'actif' (plan ${plan}) suite au paiement Stripe.`);
       }
     }
 
