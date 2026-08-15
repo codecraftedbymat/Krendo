@@ -52,6 +52,7 @@ export const api = {
 
   parametres: () => requete('/parametres'),
   majParametres: (champs) => requete('/parametres', { method: 'PATCH', body: JSON.stringify(champs) }),
+  genererLienPaiementMonEntreprise: () => requete('/mon-entreprise/checkout', { method: 'POST' }),
   ajouterJourExceptionnel: (jour) => requete('/jours-exceptionnels', { method: 'POST', body: JSON.stringify(jour) }),
   supprimerJourExceptionnel: (id) => requete(`/jours-exceptionnels/${id}`, { method: 'DELETE' }),
 

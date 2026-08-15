@@ -642,7 +642,7 @@ app.post('/api/conversations/:id/messages', authentifier, async (req, res) => {
 // ============ PARAMÈTRES ENTREPRISE (jours travaillés, jours fériés) ============
 app.get('/api/parametres', authentifier, async (req, res) => {
   const { rows: [entreprise] } = await pool.query(
-    'SELECT nom, jours_travailles, travaille_jours_feries FROM entreprises WHERE id = $1',
+    'SELECT nom, jours_travailles, travaille_jours_feries, statut_abonnement, compte_gratuit FROM entreprises WHERE id = $1',
     [req.utilisateur.entreprise_id]
   );
   const { rows: exceptions } = await pool.query(
@@ -650,6 +650,31 @@ app.get('/api/parametres', authentifier, async (req, res) => {
     [req.utilisateur.entreprise_id]
   );
   res.json({ ...entreprise, exceptions });
+});
+
+// Permet à l'admin de son entreprise de payer/activer lui-même son abonnement (self-service)
+app.post('/api/mon-entreprise/checkout', authentifier, requiresPermission('peut_gerer_comptes'), async (req, res) => {
+  try {
+    const { rows: [entreprise] } = await pool.query('SELECT * FROM entreprises WHERE id = $1', [req.utilisateur.entreprise_id]);
+    const { rows: [{ count }] } = await pool.query(
+      `SELECT COUNT(*) FROM utilisateurs u JOIN roles r ON u.role_id = r.id
+       WHERE u.entreprise_id = $1 AND r.nom = 'Employé' AND u.actif = TRUE`,
+      [req.utilisateur.entreprise_id]
+    );
+    const { rows: [moi] } = await pool.query('SELECT email FROM utilisateurs WHERE id = $1', [req.utilisateur.id]);
+
+    const session = await creerSessionCheckout({
+      entrepriseId: entreprise.id,
+      nomEntreprise: entreprise.nom,
+      emailAdmin: moi.email,
+      quantite: Number(count),
+      urlBase: process.env.FRONTEND_URL || 'https://krendo-web-production-a8b0.up.railway.app',
+    });
+
+    res.json({ url: session.url });
+  } catch (err) {
+    res.status(500).json({ erreur: err.message });
+  }
 });
 
 app.patch('/api/parametres', authentifier, requiresPermission('peut_gerer_comptes'), async (req, res) => {

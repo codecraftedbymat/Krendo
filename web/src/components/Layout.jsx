@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom';
 import { effacerSession } from '../lib/api';
+import BandeauAbonnement from './BandeauAbonnement';
 
 const liens = [
   { to: '/', label: 'Missions', icon: '📋' },
@@ -55,7 +56,10 @@ export default function Layout({ utilisateur, children }) {
         </div>
       </aside>
 
-      <main style={styles.contenu}>{children}</main>
+      <main style={styles.contenuZone}>
+        <BandeauAbonnement utilisateur={utilisateur} />
+        <div style={styles.contenu}>{children}</div>
+      </main>
     </div>
   );
 }
@@ -155,8 +159,13 @@ const styles = {
     fontSize: 16,
     padding: 4,
   },
-  contenu: {
+  contenuZone: {
     flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    minWidth: 0,
+  },
+  contenu: {
     padding: '32px 40px',
     maxWidth: 1100,
   },
