@@ -103,10 +103,12 @@ app.post('/api/webhook-stripe', express.raw({ type: 'application/json' }), async
 
 app.use(express.json({ limit: '8mb' }));
 
+const ENV_TEST = process.env.NODE_ENV === 'test';
+
 // Anti brute-force : limite les tentatives de connexion (8 essais / 15 min / IP)
 const limiteurConnexion = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 8,
+  max: ENV_TEST ? 10000 : 8,
   message: { erreur: 'Trop de tentatives de connexion. Réessayez dans quelques minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -115,7 +117,7 @@ const limiteurConnexion = rateLimit({
 // Limite dédiée aux demandes de réinitialisation de mot de passe (plus permissive)
 const limiteurMotDePasseOublie = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 5,
+  max: ENV_TEST ? 10000 : 5,
   message: { erreur: 'Trop de demandes. Réessayez dans quelques minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -124,7 +126,7 @@ const limiteurMotDePasseOublie = rateLimit({
 // Limite générale plus large sur toute l'API, pour éviter les abus automatisés
 const limiteurGeneral = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 600,
+  max: ENV_TEST ? 100000 : 600,
   standardHeaders: true,
   legacyHeaders: false,
 });
