@@ -135,6 +135,7 @@ export const apiPlateforme = {
   genererLienPaiement: (id, plan) => requetePlateforme(`/plateforme/entreprises/${id}/checkout`, { method: 'POST', body: JSON.stringify({ plan }) }),
   definirTarifPersonnalise: (id, donnees) => requetePlateforme(`/plateforme/entreprises/${id}/tarif-personnalise`, { method: 'POST', body: JSON.stringify(donnees) }),
   retirerTarifPersonnalise: (id) => requetePlateforme(`/plateforme/entreprises/${id}/tarif-personnalise`, { method: 'DELETE' }),
+  basculerFonctionnalite: (id, cle, valeur) => requetePlateforme(`/plateforme/entreprises/${id}/fonctionnalites`, { method: 'PATCH', body: JSON.stringify({ cle, valeur }) }),
   supprimerEntreprise: (id, confirmation_nom) =>
     requetePlateforme(`/plateforme/entreprises/${id}`, { method: 'DELETE', body: JSON.stringify({ confirmation_nom }) }),
 

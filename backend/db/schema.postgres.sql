@@ -27,6 +27,7 @@ ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS plan_abonnement TEXT;
 ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS stripe_price_id_perso TEXT;
 ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS stripe_price_id_perso_suite TEXT;
 ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS duree_perso_mois INTEGER;
+ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS fonctionnalites_premium JSONB NOT NULL DEFAULT '{}'::jsonb;
 
 CREATE TABLE IF NOT EXISTS jours_exceptionnels (
   id SERIAL PRIMARY KEY,

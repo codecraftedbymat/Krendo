@@ -280,6 +280,8 @@ function DetailEntreprise({ entreprise, onFermer, onSupprimee, onChange }) {
           )}
         </div>
 
+        <FonctionnalitesPremium entreprise={entreprise} onChange={onChange} />
+
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, marginTop: 20 }}>
           <p style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-secondary)', margin: 0 }}>Comptes ({utilisateurs.length})</p>
           <button style={styles.boutonSecondaire} onClick={() => setFormulaireOuvert(true)}>+ Ajouter un compte</button>
@@ -439,6 +441,54 @@ function ConfirmationSuppression({ entreprise, onFermer, onSupprime }) {
         </div>
       </div>
     </div>
+  );
+}
+
+const FONCTIONNALITES_DISPONIBLES = [
+  { cle: 'assistant_ia', label: 'Assistant IA', description: 'Aide à la création de missions, suggestions, réponses automatiques (à venir).' },
+  { cle: 'export_avance', label: 'Rapports avancés', description: 'Statistiques et exports détaillés au-delà du CSV standard.' },
+  { cle: 'support_prioritaire', label: 'Support prioritaire', description: 'Réponse accélérée aux demandes de cette entreprise.' },
+];
+
+function FonctionnalitesPremium({ entreprise, onChange }) {
+  const [enCours, setEnCours] = useState(null);
+  const flags = entreprise.fonctionnalites_premium || {};
+
+  async function basculer(cle) {
+    setEnCours(cle);
+    try {
+      await apiPlateforme.basculerFonctionnalite(entreprise.id, cle, !flags[cle]);
+      onChange();
+    } finally {
+      setEnCours(null);
+    }
+  }
+
+  return (
+    <div style={{ marginTop: 20 }}>
+      <p style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 10 }}>
+        Fonctionnalités premium
+      </p>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {FONCTIONNALITES_DISPONIBLES.map((f) => (
+          <div key={f.cle} style={styles.ligneFonctionnalitePremium}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 600 }}>{f.label}</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 1 }}>{f.description}</div>
+            </div>
+            <InterrupteurPetit actif={!!flags[f.cle]} onClick={() => basculer(f.cle)} chargement={enCours === f.cle} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function InterrupteurPetit({ actif, onClick, chargement }) {
+  return (
+    <button onClick={onClick} disabled={chargement} style={{ ...styles.interrupteur, background: actif ? 'var(--emerald)' : 'var(--border)' }}>
+      <span style={{ ...styles.interrupteurRond, transform: actif ? 'translateX(18px)' : 'translateX(2px)' }} />
+    </button>
   );
 }
 
@@ -733,6 +783,10 @@ const styles = {
     background: 'var(--canvas)', border: 'none', borderRadius: 7, padding: '7px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap',
   },
   listeComptes: { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 24 },
+  ligneFonctionnalitePremium: {
+    display: 'flex', alignItems: 'center', gap: 10, background: 'var(--canvas)',
+    borderRadius: 'var(--radius-sm)', padding: '10px 12px',
+  },
   ligneCompte: {
     display: 'flex', alignItems: 'center', gap: 8, background: 'var(--canvas)',
     borderRadius: 'var(--radius-sm)', padding: '9px 12px', flexWrap: 'wrap',

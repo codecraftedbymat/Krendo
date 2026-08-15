@@ -662,7 +662,7 @@ app.post('/api/conversations/:id/messages', authentifier, async (req, res) => {
 // ============ PARAMÈTRES ENTREPRISE (jours travaillés, jours fériés) ============
 app.get('/api/parametres', authentifier, async (req, res) => {
   const { rows: [entreprise] } = await pool.query(
-    'SELECT nom, jours_travailles, travaille_jours_feries, statut_abonnement, compte_gratuit FROM entreprises WHERE id = $1',
+    'SELECT nom, jours_travailles, travaille_jours_feries, statut_abonnement, compte_gratuit, fonctionnalites_premium FROM entreprises WHERE id = $1',
     [req.utilisateur.entreprise_id]
   );
   const { rows: exceptions } = await pool.query(
@@ -827,7 +827,7 @@ app.post('/api/plateforme/entreprises', authentifierPlateforme, async (req, res)
 });
 
 app.patch('/api/plateforme/entreprises/:id', authentifierPlateforme, async (req, res) => {
-  const { statut_abonnement, compte_gratuit, note_interne, date_fin_abonnement } = req.body;
+  const { statut_abonnement, compte_gratuit, note_interne, date_fin_abonnement, fonctionnalites_premium } = req.body;
   const champs = [];
   const valeurs = [];
   let i = 1;
@@ -835,6 +835,7 @@ app.patch('/api/plateforme/entreprises/:id', authentifierPlateforme, async (req,
   if (compte_gratuit !== undefined) { champs.push(`compte_gratuit = $${i++}`); valeurs.push(compte_gratuit); }
   if (note_interne !== undefined) { champs.push(`note_interne = $${i++}`); valeurs.push(note_interne); }
   if (date_fin_abonnement !== undefined) { champs.push(`date_fin_abonnement = $${i++}`); valeurs.push(date_fin_abonnement || null); }
+  if (fonctionnalites_premium !== undefined) { champs.push(`fonctionnalites_premium = $${i++}`); valeurs.push(fonctionnalites_premium); }
   if (champs.length === 0) return res.status(400).json({ erreur: 'Rien à mettre à jour' });
   valeurs.push(req.params.id);
   await pool.query(`UPDATE entreprises SET ${champs.join(', ')} WHERE id = $${i}`, valeurs);
@@ -928,6 +929,18 @@ app.delete('/api/plateforme/entreprises/:id/utilisateurs/:userId', authentifierP
 app.get('/api/plateforme/roles', authentifierPlateforme, async (req, res) => {
   const { rows } = await pool.query('SELECT id, nom FROM roles ORDER BY id');
   res.json(rows);
+});
+
+// Active/désactive une fonctionnalité premium pour une entreprise (ex: assistant_ia, export_avance...)
+app.patch('/api/plateforme/entreprises/:id/fonctionnalites', authentifierPlateforme, async (req, res) => {
+  const { cle, valeur } = req.body;
+  if (!cle) return res.status(400).json({ erreur: 'Clé de fonctionnalité manquante.' });
+
+  await pool.query(
+    `UPDATE entreprises SET fonctionnalites_premium = jsonb_set(fonctionnalites_premium, $1, $2::jsonb, true) WHERE id = $3`,
+    [`{${cle}}`, JSON.stringify(!!valeur), req.params.id]
+  );
+  res.json({ ok: true });
 });
 
 // Génère un lien de paiement Stripe (abonnement) pour une entreprise, à envoyer au client.
