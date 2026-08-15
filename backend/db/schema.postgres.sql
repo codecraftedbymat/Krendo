@@ -24,6 +24,9 @@ ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
 ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
 ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS date_fin_abonnement DATE;
 ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS plan_abonnement TEXT;
+ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS stripe_price_id_perso TEXT;
+ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS stripe_price_id_perso_suite TEXT;
+ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS duree_perso_mois INTEGER;
 
 CREATE TABLE IF NOT EXISTS jours_exceptionnels (
   id SERIAL PRIMARY KEY,

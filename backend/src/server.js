@@ -7,7 +7,7 @@ import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { pool, initDb } from './db.js';
 import { envoyerEmail, modelesEmail } from './email.js';
-import { stripe, creerSessionCheckout, synchroniserQuantiteStripe } from './stripe.js';
+import { stripe, creerSessionCheckout, synchroniserQuantiteStripe, creerPrixPersonnalise, programmerBasculePrix } from './stripe.js';
 
 const app = express();
 app.use(helmet({
@@ -56,6 +56,25 @@ app.post('/api/webhook-stripe', express.raw({ type: 'application/json' }), async
           [session.customer, session.subscription, plan, entrepriseId]
         );
         console.log(`Entreprise ${entrepriseId} passée en 'actif' (plan ${plan}) suite au paiement Stripe.`);
+
+        // Si un tarif personnalisé avec bascule programmée est configuré, on met en place
+        // le changement de prix automatique après la durée prévue.
+        const { rows: [entreprise] } = await pool.query(
+          'SELECT stripe_price_id_perso_suite, duree_perso_mois FROM entreprises WHERE id = $1', [entrepriseId]
+        );
+        if (entreprise?.stripe_price_id_perso_suite && entreprise?.duree_perso_mois) {
+          const { rows: [{ count }] } = await pool.query(
+            `SELECT COUNT(*) FROM utilisateurs u JOIN roles r ON u.role_id = r.id
+             WHERE u.entreprise_id = $1 AND r.nom = 'Employé' AND u.actif = TRUE`,
+            [entrepriseId]
+          );
+          await programmerBasculePrix({
+            subscriptionId: session.subscription,
+            priceIdSuite: entreprise.stripe_price_id_perso_suite,
+            dureeMois: entreprise.duree_perso_mois,
+            quantite: Number(count),
+          }).catch((err) => console.error('Erreur programmation bascule de prix:', err.message));
+        }
       }
     }
 
@@ -936,12 +955,49 @@ app.post('/api/plateforme/entreprises/:id/checkout', authentifierPlateforme, asy
       quantite: Number(count),
       urlBase: process.env.FRONTEND_URL || 'https://krendo-web-production-a8b0.up.railway.app',
       plan: req.body?.plan === 'annuel' ? 'annuel' : 'mensuel',
+      priceIdPerso: entreprise.stripe_price_id_perso || undefined,
     });
 
     res.json({ url: session.url });
   } catch (err) {
     res.status(500).json({ erreur: err.message });
   }
+});
+
+// Configure un tarif mensuel personnalisé pour une entreprise (ex: 2€/employé au lieu de 3€),
+// avec bascule automatique optionnelle vers un second tarif après N mois.
+app.post('/api/plateforme/entreprises/:id/tarif-personnalise', authentifierPlateforme, async (req, res) => {
+  try {
+    const { prix_initial_euros, duree_mois, prix_suite_euros } = req.body;
+    if (!prix_initial_euros || Number(prix_initial_euros) <= 0) {
+      return res.status(400).json({ erreur: 'Prix initial invalide.' });
+    }
+
+    const priceIdInitial = await creerPrixPersonnalise(Math.round(Number(prix_initial_euros) * 100));
+
+    let priceIdSuite = null;
+    if (duree_mois && prix_suite_euros) {
+      priceIdSuite = await creerPrixPersonnalise(Math.round(Number(prix_suite_euros) * 100));
+    }
+
+    await pool.query(
+      `UPDATE entreprises SET stripe_price_id_perso = $1, stripe_price_id_perso_suite = $2, duree_perso_mois = $3 WHERE id = $4`,
+      [priceIdInitial, priceIdSuite, duree_mois || null, req.params.id]
+    );
+
+    res.json({ ok: true, stripe_price_id_perso: priceIdInitial, stripe_price_id_perso_suite: priceIdSuite });
+  } catch (err) {
+    res.status(500).json({ erreur: err.message });
+  }
+});
+
+// Retire le tarif personnalisé d'une entreprise (retour au tarif standard)
+app.delete('/api/plateforme/entreprises/:id/tarif-personnalise', authentifierPlateforme, async (req, res) => {
+  await pool.query(
+    `UPDATE entreprises SET stripe_price_id_perso = NULL, stripe_price_id_perso_suite = NULL, duree_perso_mois = NULL WHERE id = $1`,
+    [req.params.id]
+  );
+  res.json({ ok: true });
 });
 
 app.post('/api/mon-mot-de-passe', authentifier, async (req, res) => {

@@ -133,6 +133,8 @@ export const apiPlateforme = {
   creerEntreprise: (donnees) => requetePlateforme('/plateforme/entreprises', { method: 'POST', body: JSON.stringify(donnees) }),
   majEntreprise: (id, champs) => requetePlateforme(`/plateforme/entreprises/${id}`, { method: 'PATCH', body: JSON.stringify(champs) }),
   genererLienPaiement: (id, plan) => requetePlateforme(`/plateforme/entreprises/${id}/checkout`, { method: 'POST', body: JSON.stringify({ plan }) }),
+  definirTarifPersonnalise: (id, donnees) => requetePlateforme(`/plateforme/entreprises/${id}/tarif-personnalise`, { method: 'POST', body: JSON.stringify(donnees) }),
+  retirerTarifPersonnalise: (id) => requetePlateforme(`/plateforme/entreprises/${id}/tarif-personnalise`, { method: 'DELETE' }),
   supprimerEntreprise: (id, confirmation_nom) =>
     requetePlateforme(`/plateforme/entreprises/${id}`, { method: 'DELETE', body: JSON.stringify({ confirmation_nom }) }),
 

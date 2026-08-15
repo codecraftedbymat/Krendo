@@ -267,7 +267,11 @@ function DetailEntreprise({ entreprise, onFermer, onSupprimee, onChange }) {
           )}
 
           {!compteGratuit && !entreprise.stripe_subscription_id && (
-            <BoutonLienPaiement entrepriseId={entreprise.id} />
+            <TarifPersonnalise entreprise={entreprise} onChange={onChange} />
+          )}
+
+          {!compteGratuit && !entreprise.stripe_subscription_id && (
+            <BoutonLienPaiement entrepriseId={entreprise.id} tarifPerso={!!entreprise.stripe_price_id_perso} />
           )}
           {entreprise.stripe_subscription_id && (
             <p style={{ fontSize: 11.5, color: 'var(--emerald)', fontWeight: 700, marginTop: 14 }}>
@@ -438,7 +442,100 @@ function ConfirmationSuppression({ entreprise, onFermer, onSupprime }) {
   );
 }
 
-function BoutonLienPaiement({ entrepriseId }) {
+function TarifPersonnalise({ entreprise, onChange }) {
+  const [ouvert, setOuvert] = useState(false);
+  const [prixInitial, setPrixInitial] = useState('');
+  const [avecBascule, setAvecBascule] = useState(false);
+  const [dureeMois, setDureeMois] = useState(6);
+  const [prixSuite, setPrixSuite] = useState('');
+  const [chargement, setChargement] = useState(false);
+  const [erreur, setErreur] = useState('');
+
+  const tarifActif = !!entreprise.stripe_price_id_perso;
+
+  async function enregistrer() {
+    setErreur('');
+    setChargement(true);
+    try {
+      await apiPlateforme.definirTarifPersonnalise(entreprise.id, {
+        prix_initial_euros: Number(prixInitial),
+        duree_mois: avecBascule ? Number(dureeMois) : null,
+        prix_suite_euros: avecBascule ? Number(prixSuite) : null,
+      });
+      setOuvert(false);
+      onChange();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setChargement(false);
+    }
+  }
+
+  async function retirer() {
+    await apiPlateforme.retirerTarifPersonnalise(entreprise.id);
+    onChange();
+  }
+
+  if (tarifActif && !ouvert) {
+    return (
+      <div style={{ marginTop: 14, background: 'white', border: '1px solid var(--border)', borderRadius: 10, padding: 10 }}>
+        <p style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--ink)', margin: 0 }}>
+          Tarif personnalisé actif pour cette entreprise
+        </p>
+        {entreprise.duree_perso_mois && (
+          <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '3px 0 0' }}>
+            Bascule automatique vers un second tarif après {entreprise.duree_perso_mois} mois.
+          </p>
+        )}
+        <button style={{ ...styles.boutonSecondaire, marginTop: 8 }} onClick={retirer}>Retirer le tarif personnalisé</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 14 }}>
+      {!ouvert ? (
+        <button style={styles.boutonSecondaire} onClick={() => setOuvert(true)}>Définir un tarif personnalisé</button>
+      ) : (
+        <div style={{ background: 'white', border: '1px solid var(--border)', borderRadius: 10, padding: 12 }}>
+          <label style={styles.champLabel}>
+            <span style={styles.champTexte}>Prix (€ / employé / mois)</span>
+            <input type="number" step="0.01" min="0.01" style={styles.input} value={prixInitial} onChange={(e) => setPrixInitial(e.target.value)} placeholder="2.00" />
+          </label>
+
+          <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 10, fontSize: 12 }}>
+            <input type="checkbox" checked={avecBascule} onChange={(e) => setAvecBascule(e.target.checked)} />
+            Basculer automatiquement vers un autre tarif après un certain temps
+          </label>
+
+          {avecBascule && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 10 }}>
+              <label style={styles.champLabel}>
+                <span style={styles.champTexte}>Après (mois)</span>
+                <input type="number" min="1" style={styles.input} value={dureeMois} onChange={(e) => setDureeMois(e.target.value)} />
+              </label>
+              <label style={styles.champLabel}>
+                <span style={styles.champTexte}>Nouveau prix (€)</span>
+                <input type="number" step="0.01" min="0.01" style={styles.input} value={prixSuite} onChange={(e) => setPrixSuite(e.target.value)} placeholder="3.00" />
+              </label>
+            </div>
+          )}
+
+          {erreur && <div style={{ ...styles.erreur, marginTop: 8 }}>{erreur}</div>}
+
+          <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+            <button style={styles.boutonSecondaire} onClick={() => setOuvert(false)}>Annuler</button>
+            <button style={styles.boutonPrincipal} onClick={enregistrer} disabled={chargement || !prixInitial}>
+              {chargement ? 'Enregistrement...' : 'Enregistrer le tarif'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BoutonLienPaiement({ entrepriseId, tarifPerso }) {
   const [lien, setLien] = useState(null);
   const [plan, setPlan] = useState('mensuel');
   const [chargement, setChargement] = useState(false);
@@ -468,18 +565,25 @@ function BoutonLienPaiement({ entrepriseId }) {
     <div style={{ marginTop: 16 }}>
       {!lien ? (
         <>
-          <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-            <button
-              type="button"
-              style={{ ...styles.togglePlan, ...(plan === 'mensuel' ? styles.togglePlanActif : {}) }}
-              onClick={() => setPlan('mensuel')}
-            >Mensuel</button>
-            <button
-              type="button"
-              style={{ ...styles.togglePlan, ...(plan === 'annuel' ? styles.togglePlanActif : {}) }}
-              onClick={() => setPlan('annuel')}
-            >Annuel (2 mois offerts)</button>
-          </div>
+          {!tarifPerso && (
+            <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
+              <button
+                type="button"
+                style={{ ...styles.togglePlan, ...(plan === 'mensuel' ? styles.togglePlanActif : {}) }}
+                onClick={() => setPlan('mensuel')}
+              >Mensuel</button>
+              <button
+                type="button"
+                style={{ ...styles.togglePlan, ...(plan === 'annuel' ? styles.togglePlanActif : {}) }}
+                onClick={() => setPlan('annuel')}
+              >Annuel (2 mois offerts)</button>
+            </div>
+          )}
+          {tarifPerso && (
+            <p style={{ fontSize: 11, color: 'var(--text-secondary)', margin: '0 0 8px' }}>
+              Le lien utilisera le tarif personnalisé défini ci-dessus (mensuel).
+            </p>
+          )}
           <button style={styles.boutonSecondaire} onClick={generer} disabled={chargement}>
             {chargement ? 'Génération...' : '💳 Générer un lien de paiement'}
           </button>

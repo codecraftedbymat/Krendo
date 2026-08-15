@@ -13,11 +13,12 @@ export { stripe };
 // Crée une session de paiement Stripe (abonnement) pour une entreprise.
 // La quantité facturée = nombre d'employés actifs au moment de la création.
 // plan = 'mensuel' (3€/employé/mois) ou 'annuel' (30€/employé/an, soit 2 mois offerts)
-export async function creerSessionCheckout({ entrepriseId, nomEntreprise, emailAdmin, quantite, urlBase, plan = 'mensuel' }) {
+// priceIdPerso : si fourni, remplace le prix par défaut du plan (tarif négocié pour cette entreprise)
+export async function creerSessionCheckout({ entrepriseId, nomEntreprise, emailAdmin, quantite, urlBase, plan = 'mensuel', priceIdPerso }) {
   if (!stripe) throw new Error('Stripe non configuré (STRIPE_SECRET_KEY manquante).');
 
-  const priceId = plan === 'annuel' ? process.env.STRIPE_PRICE_ID_ANNUEL : process.env.STRIPE_PRICE_ID_MENSUEL;
-  if (!priceId) throw new Error(`Prix Stripe manquant pour le plan ${plan} (STRIPE_PRICE_ID_${plan === 'annuel' ? 'ANNUEL' : 'MENSUEL'}).`);
+  const priceId = priceIdPerso || (plan === 'annuel' ? process.env.STRIPE_PRICE_ID_ANNUEL : process.env.STRIPE_PRICE_ID_MENSUEL);
+  if (!priceId) throw new Error(`Prix Stripe manquant pour le plan ${plan}.`);
 
   const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
@@ -31,6 +32,50 @@ export async function creerSessionCheckout({ entrepriseId, nomEntreprise, emailA
     },
   });
   return session;
+}
+
+// Retrouve l'ID du Produit Stripe "Abonnement Krendo" à partir du prix mensuel par défaut,
+// pour pouvoir y rattacher des prix personnalisés sans configuration supplémentaire.
+async function idProduitKrendo() {
+  if (!process.env.STRIPE_PRICE_ID_MENSUEL) throw new Error('STRIPE_PRICE_ID_MENSUEL manquant (nécessaire pour retrouver le produit).');
+  const prixDefaut = await stripe.prices.retrieve(process.env.STRIPE_PRICE_ID_MENSUEL);
+  return typeof prixDefaut.product === 'string' ? prixDefaut.product : prixDefaut.product.id;
+}
+
+// Crée un prix Stripe personnalisé (mensuel) pour une entreprise, ex: 2€/employé au lieu de 3€.
+export async function creerPrixPersonnalise(montantCentimes) {
+  if (!stripe) throw new Error('Stripe non configuré (STRIPE_SECRET_KEY manquante).');
+  const produitId = await idProduitKrendo();
+  const prix = await stripe.prices.create({
+    product: produitId,
+    currency: 'eur',
+    unit_amount: montantCentimes,
+    recurring: { interval: 'month' },
+    billing_scheme: 'per_unit',
+  });
+  return prix.id;
+}
+
+// Met en place la bascule automatique vers un second prix après N mois, via un
+// "Subscription Schedule" Stripe : Stripe change le prix tout seul à la date prévue,
+// sans tâche ni serveur à surveiller de notre côté.
+export async function programmerBasculePrix({ subscriptionId, priceIdSuite, dureeMois, quantite }) {
+  if (!stripe) return;
+  const schedule = await stripe.subscriptionSchedules.create({ from_subscription: subscriptionId });
+
+  const phaseActuelle = schedule.phases[0];
+  await stripe.subscriptionSchedules.update(schedule.id, {
+    end_behavior: 'release',
+    phases: [
+      {
+        items: phaseActuelle.items.map((it) => ({ price: it.price, quantity: it.quantity })),
+        iterations: dureeMois,
+      },
+      {
+        items: [{ price: priceIdSuite, quantity: Math.max(quantite, 1) }],
+      },
+    ],
+  });
 }
 
 // Met à jour la quantité facturée sur l'abonnement Stripe existant d'une entreprise,
