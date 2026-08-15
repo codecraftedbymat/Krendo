@@ -115,6 +115,17 @@ export const apiPlateforme = {
   entreprises: () => requetePlateforme('/plateforme/entreprises'),
   creerEntreprise: (donnees) => requetePlateforme('/plateforme/entreprises', { method: 'POST', body: JSON.stringify(donnees) }),
   majEntreprise: (id, champs) => requetePlateforme(`/plateforme/entreprises/${id}`, { method: 'PATCH', body: JSON.stringify(champs) }),
+  supprimerEntreprise: (id, confirmation_nom) =>
+    requetePlateforme(`/plateforme/entreprises/${id}`, { method: 'DELETE', body: JSON.stringify({ confirmation_nom }) }),
+
+  utilisateursEntreprise: (id) => requetePlateforme(`/plateforme/entreprises/${id}/utilisateurs`),
+  creerUtilisateurEntreprise: (id, donnees) =>
+    requetePlateforme(`/plateforme/entreprises/${id}/utilisateurs`, { method: 'POST', body: JSON.stringify(donnees) }),
+  majUtilisateurEntreprise: (id, userId, champs) =>
+    requetePlateforme(`/plateforme/entreprises/${id}/utilisateurs/${userId}`, { method: 'PATCH', body: JSON.stringify(champs) }),
+  supprimerUtilisateurEntreprise: (id, userId) =>
+    requetePlateforme(`/plateforme/entreprises/${id}/utilisateurs/${userId}`, { method: 'DELETE' }),
+  roles: () => requetePlateforme('/plateforme/roles'),
 };
 
 export function sauvegarderSessionPlateforme(token, admin) {

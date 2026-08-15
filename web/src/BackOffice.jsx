@@ -64,6 +64,7 @@ function TableauDeBord({ admin, onDeconnexion }) {
   const [entreprises, setEntreprises] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [formulaireOuvert, setFormulaireOuvert] = useState(false);
+  const [entrepriseOuverte, setEntrepriseOuverte] = useState(null);
 
   useEffect(() => { charger(); }, []);
 
@@ -98,7 +99,7 @@ function TableauDeBord({ admin, onDeconnexion }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
           <div>
             <h1 style={{ fontSize: 24, fontFamily: 'var(--font-display)', fontWeight: 800, margin: 0 }}>Entreprises clientes</h1>
-            <p style={{ color: 'var(--text-secondary)', fontSize: 13.5, margin: '6px 0 0' }}>{entreprises.length} entreprise(s) sur Krendo</p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: 13.5, margin: '6px 0 0' }}>{entreprises.length} entreprise(s) sur Krendo · cliquez sur une ligne pour la gérer</p>
           </div>
           <button style={styles.boutonPrincipal} onClick={() => setFormulaireOuvert(true)}>+ Nouvelle entreprise</button>
         </div>
@@ -108,7 +109,7 @@ function TableauDeBord({ admin, onDeconnexion }) {
         ) : (
           <div style={styles.tableau}>
             {entreprises.map((e) => (
-              <div key={e.id} style={styles.ligneEntreprise}>
+              <div key={e.id} style={styles.ligneEntreprise} onClick={() => setEntrepriseOuverte(e)}>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: 15, fontWeight: 700 }}>{e.nom}</div>
                   <div style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>{e.nb_utilisateurs} utilisateur(s) actif(s)</div>
@@ -116,6 +117,7 @@ function TableauDeBord({ admin, onDeconnexion }) {
                 <select
                   value={e.statut_abonnement}
                   onChange={(ev) => changerStatut(e.id, ev.target.value)}
+                  onClick={(ev) => ev.stopPropagation()}
                   style={{ ...styles.selectStatut, ...statutStyle(e.statut_abonnement) }}
                 >
                   <option value="essai">Essai</option>
@@ -132,6 +134,229 @@ function TableauDeBord({ admin, onDeconnexion }) {
       {formulaireOuvert && (
         <FormulaireEntreprise onFermer={() => setFormulaireOuvert(false)} onCree={() => { setFormulaireOuvert(false); charger(); }} />
       )}
+
+      {entrepriseOuverte && (
+        <DetailEntreprise
+          entreprise={entrepriseOuverte}
+          onFermer={() => setEntrepriseOuverte(null)}
+          onSupprimee={() => { setEntrepriseOuverte(null); charger(); }}
+          onChange={charger}
+        />
+      )}
+    </div>
+  );
+}
+
+function DetailEntreprise({ entreprise, onFermer, onSupprimee, onChange }) {
+  const [utilisateurs, setUtilisateurs] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [chargement, setChargement] = useState(true);
+  const [formulaireOuvert, setFormulaireOuvert] = useState(false);
+  const [suppressionOuverte, setSuppressionOuverte] = useState(false);
+
+  useEffect(() => { charger(); }, []);
+
+  async function charger() {
+    setChargement(true);
+    try {
+      const [u, r] = await Promise.all([
+        apiPlateforme.utilisateursEntreprise(entreprise.id),
+        apiPlateforme.roles(),
+      ]);
+      setUtilisateurs(u);
+      setRoles(r);
+    } finally {
+      setChargement(false);
+    }
+  }
+
+  async function changerRole(userId, role_id) {
+    await apiPlateforme.majUtilisateurEntreprise(entreprise.id, userId, { role_id: Number(role_id) });
+    charger();
+  }
+
+  async function basculerActif(u) {
+    await apiPlateforme.majUtilisateurEntreprise(entreprise.id, u.id, { actif: !u.actif });
+    charger();
+  }
+
+  async function supprimerUtilisateur(u) {
+    const confirmation = window.confirm(`Supprimer définitivement ${u.prenom} ${u.nom} ?`);
+    if (!confirmation) return;
+    const resultat = await apiPlateforme.supprimerUtilisateurEntreprise(entreprise.id, u.id);
+    if (resultat.desactive) alert(resultat.message);
+    charger();
+  }
+
+  return (
+    <div style={styles.overlay} onClick={onFermer}>
+      <div style={styles.panneauLarge} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
+          <div>
+            <h2 style={{ fontSize: 20, margin: 0 }}>{entreprise.nom}</h2>
+            <span style={{ ...styles.badgeStatut, ...statutStyle(entreprise.statut_abonnement) }}>{entreprise.statut_abonnement}</span>
+          </div>
+          <button style={styles.fermer} onClick={onFermer}>✕</button>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <p style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text-secondary)', margin: 0 }}>Comptes ({utilisateurs.length})</p>
+          <button style={styles.boutonSecondaire} onClick={() => setFormulaireOuvert(true)}>+ Ajouter un compte</button>
+        </div>
+
+        {chargement ? (
+          <p style={{ color: 'var(--text-secondary)', fontSize: 13.5 }}>Chargement...</p>
+        ) : (
+          <div style={styles.listeComptes}>
+            {utilisateurs.map((u) => (
+              <div key={u.id} style={styles.ligneCompte}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 600 }}>{u.prenom} {u.nom}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{u.email}</div>
+                </div>
+                <select value={u.role_id} onChange={(e) => changerRole(u.id, e.target.value)} style={styles.selectRole}>
+                  {roles.map((r) => <option key={r.id} value={r.id}>{r.nom}</option>)}
+                </select>
+                {!u.actif && <span style={styles.badgeInactif}>Désactivé</span>}
+                <button style={styles.boutonMini} onClick={() => basculerActif(u)}>{u.actif ? 'Désactiver' : 'Réactiver'}</button>
+                <button style={styles.boutonMiniSupprimer} onClick={() => supprimerUtilisateur(u)}>Supprimer</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div style={styles.zoneDanger}>
+          <p style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--red)', margin: '0 0 4px' }}>Zone de danger</p>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 10px' }}>
+            Supprime définitivement cette entreprise et toutes ses données (missions, comptes, absences, messages...). Action irréversible.
+          </p>
+          <button style={styles.boutonDanger} onClick={() => setSuppressionOuverte(true)}>Supprimer définitivement cette entreprise</button>
+        </div>
+      </div>
+
+      {formulaireOuvert && (
+        <FormulaireCompteEntreprise
+          entreprise={entreprise}
+          roles={roles}
+          onFermer={() => setFormulaireOuvert(false)}
+          onCree={() => { setFormulaireOuvert(false); charger(); }}
+        />
+      )}
+
+      {suppressionOuverte && (
+        <ConfirmationSuppression
+          entreprise={entreprise}
+          onFermer={() => setSuppressionOuverte(false)}
+          onSupprime={onSupprimee}
+        />
+      )}
+    </div>
+  );
+}
+
+function FormulaireCompteEntreprise({ entreprise, roles, onFermer, onCree }) {
+  const [champ, setChamp] = useState({ prenom: '', nom: '', email: '', mot_de_passe: '', role_id: '' });
+  const [erreur, setErreur] = useState('');
+  const [envoi, setEnvoi] = useState(false);
+
+  function set(nom, valeur) { setChamp((c) => ({ ...c, [nom]: valeur })); }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    setErreur('');
+    setEnvoi(true);
+    try {
+      await apiPlateforme.creerUtilisateurEntreprise(entreprise.id, { ...champ, role_id: Number(champ.role_id) });
+      onCree();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setEnvoi(false);
+    }
+  }
+
+  return (
+    <div style={styles.overlay} onClick={onFermer}>
+      <form style={styles.panneau} onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 18 }}>
+          <h2 style={{ fontSize: 18, margin: 0 }}>Nouveau compte — {entreprise.nom}</h2>
+          <button type="button" style={styles.fermer} onClick={onFermer}>✕</button>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+          <label style={styles.champLabel}>
+            <span style={styles.champTexte}>Prénom</span>
+            <input required style={styles.input} value={champ.prenom} onChange={(e) => set('prenom', e.target.value)} />
+          </label>
+          <label style={styles.champLabel}>
+            <span style={styles.champTexte}>Nom</span>
+            <input required style={styles.input} value={champ.nom} onChange={(e) => set('nom', e.target.value)} />
+          </label>
+        </div>
+        <label style={{ ...styles.champLabel, marginTop: 12 }}>
+          <span style={styles.champTexte}>Email</span>
+          <input required type="email" style={styles.input} value={champ.email} onChange={(e) => set('email', e.target.value)} />
+        </label>
+        <label style={{ ...styles.champLabel, marginTop: 12 }}>
+          <span style={styles.champTexte}>Mot de passe provisoire</span>
+          <input required style={styles.input} value={champ.mot_de_passe} onChange={(e) => set('mot_de_passe', e.target.value)} />
+        </label>
+        <label style={{ ...styles.champLabel, marginTop: 12 }}>
+          <span style={styles.champTexte}>Rôle</span>
+          <select required style={styles.input} value={champ.role_id} onChange={(e) => set('role_id', e.target.value)}>
+            <option value="">Choisir un rôle</option>
+            {roles.map((r) => <option key={r.id} value={r.id}>{r.nom}</option>)}
+          </select>
+        </label>
+        {erreur && <div style={styles.erreur}>{erreur}</div>}
+        <button type="submit" disabled={envoi} style={{ ...styles.bouton, marginTop: 18 }}>
+          {envoi ? 'Création...' : 'Créer le compte'}
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function ConfirmationSuppression({ entreprise, onFermer, onSupprime }) {
+  const [saisie, setSaisie] = useState('');
+  const [erreur, setErreur] = useState('');
+  const [envoi, setEnvoi] = useState(false);
+
+  async function confirmer() {
+    setErreur('');
+    setEnvoi(true);
+    try {
+      await apiPlateforme.supprimerEntreprise(entreprise.id, saisie);
+      onSupprime();
+    } catch (err) {
+      setErreur(err.message);
+    } finally {
+      setEnvoi(false);
+    }
+  }
+
+  return (
+    <div style={styles.overlayDanger} onClick={onFermer}>
+      <div style={styles.panneauDanger} onClick={(e) => e.stopPropagation()}>
+        <h2 style={{ fontSize: 18, color: 'var(--red)', margin: '0 0 8px' }}>Suppression définitive</h2>
+        <p style={{ fontSize: 13.5, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+          Cette action supprimera <strong>{entreprise.nom}</strong>, tous ses comptes, missions, absences et messages, de façon définitive et irréversible.
+        </p>
+        <p style={{ fontSize: 13, marginTop: 16 }}>
+          Tapez <strong>{entreprise.nom}</strong> pour confirmer :
+        </p>
+        <input style={styles.input} value={saisie} onChange={(e) => setSaisie(e.target.value)} />
+        {erreur && <div style={{ ...styles.erreur, marginTop: 10 }}>{erreur}</div>}
+        <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+          <button style={styles.boutonSecondaire} onClick={onFermer}>Annuler</button>
+          <button
+            style={{ ...styles.boutonDanger, flex: 1 }}
+            disabled={saisie !== entreprise.nom || envoi}
+            onClick={confirmer}
+          >
+            {envoi ? 'Suppression...' : 'Supprimer définitivement'}
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -241,12 +466,33 @@ const styles = {
   tableau: { display: 'flex', flexDirection: 'column', gap: 8 },
   ligneEntreprise: {
     display: 'flex', alignItems: 'center', gap: 12, background: 'var(--card)',
-    border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '14px 16px',
+    border: '1px solid var(--border)', borderRadius: 'var(--radius-md)', padding: '14px 16px', cursor: 'pointer',
   },
   selectStatut: { border: 'none', borderRadius: 7, padding: '6px 10px', fontSize: 12.5, fontWeight: 700, fontFamily: 'var(--font-body)' },
   overlay: { position: 'fixed', inset: 0, background: 'rgba(28,37,54,0.45)', display: 'flex', justifyContent: 'flex-end', zIndex: 50 },
+  overlayDanger: { position: 'fixed', inset: 0, background: 'rgba(28,37,54,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 60, padding: 20 },
   panneau: { width: 420, maxWidth: '100%', background: 'var(--card)', height: '100%', padding: 28, overflowY: 'auto' },
+  panneauLarge: { width: 640, maxWidth: '100%', background: 'var(--card)', height: '100%', padding: 28, overflowY: 'auto' },
+  panneauDanger: { width: 440, maxWidth: '100%', background: 'var(--card)', borderRadius: 'var(--radius-lg)', padding: 28 },
   fermer: { background: 'var(--canvas)', border: 'none', borderRadius: 8, width: 30, height: 30, fontSize: 14 },
   champLabel: { display: 'flex', flexDirection: 'column', gap: 5 },
   champTexte: { fontSize: 12.5, fontWeight: 600, color: 'var(--text-secondary)' },
+  badgeStatut: { display: 'inline-block', marginTop: 6, fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 6, textTransform: 'capitalize' },
+  boutonSecondaire: {
+    background: 'var(--canvas)', border: 'none', borderRadius: 7, padding: '7px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', whiteSpace: 'nowrap',
+  },
+  listeComptes: { display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 24 },
+  ligneCompte: {
+    display: 'flex', alignItems: 'center', gap: 8, background: 'var(--canvas)',
+    borderRadius: 'var(--radius-sm)', padding: '9px 12px', flexWrap: 'wrap',
+  },
+  selectRole: { border: '1px solid var(--border)', borderRadius: 6, padding: '5px 8px', fontSize: 11.5, fontFamily: 'var(--font-body)' },
+  badgeInactif: { fontSize: 10.5, fontWeight: 700, background: 'var(--red-soft)', color: 'var(--red)', padding: '3px 8px', borderRadius: 5 },
+  boutonMini: { background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 9px', fontSize: 11, fontWeight: 700, color: 'var(--text-secondary)' },
+  boutonMiniSupprimer: { background: 'var(--red-soft)', border: 'none', borderRadius: 6, padding: '5px 9px', fontSize: 11, fontWeight: 700, color: 'var(--red)' },
+  zoneDanger: { border: '1px solid var(--red-soft)', borderRadius: 'var(--radius-md)', padding: 16, background: 'rgba(194,68,68,0.03)' },
+  boutonDanger: {
+    background: 'var(--red)', color: 'white', border: 'none', borderRadius: 'var(--radius-sm)',
+    padding: '10px 16px', fontWeight: 700, fontSize: 13,
+  },
 };

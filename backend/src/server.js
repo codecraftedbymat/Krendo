@@ -654,6 +654,95 @@ app.patch('/api/plateforme/entreprises/:id', authentifierPlateforme, async (req,
   res.json({ ok: true });
 });
 
+// Suppression DÉFINITIVE d'une entreprise et de toutes ses données. Action irréversible.
+// Par sécurité, il faut renvoyer le nom exact de l'entreprise en confirmation.
+app.delete('/api/plateforme/entreprises/:id', authentifierPlateforme, async (req, res) => {
+  const { confirmation_nom } = req.body;
+  const { rows: [entreprise] } = await pool.query('SELECT * FROM entreprises WHERE id = $1', [req.params.id]);
+  if (!entreprise) return res.status(404).json({ erreur: 'Entreprise introuvable.' });
+  if (confirmation_nom !== entreprise.nom) {
+    return res.status(400).json({ erreur: "Le nom de confirmation ne correspond pas. Rien n'a été supprimé." });
+  }
+
+  const id = req.params.id;
+  const { rows: utilisateurs } = await pool.query('SELECT id FROM utilisateurs WHERE entreprise_id = $1', [id]);
+  const idsUtilisateurs = utilisateurs.map((u) => u.id);
+
+  if (idsUtilisateurs.length > 0) {
+    await pool.query('DELETE FROM messages WHERE expediteur_utilisateur_id = ANY($1::int[])', [idsUtilisateurs]);
+  }
+  await pool.query('DELETE FROM conversations WHERE entreprise_id = $1', [id]);
+  await pool.query(
+    `DELETE FROM creneaux WHERE mission_id IN (SELECT id FROM missions WHERE entreprise_id = $1)`, [id]
+  );
+  await pool.query(
+    `DELETE FROM mission_reponses WHERE mission_id IN (SELECT id FROM missions WHERE entreprise_id = $1)`, [id]
+  );
+  await pool.query('DELETE FROM missions WHERE entreprise_id = $1', [id]);
+  await pool.query('DELETE FROM absences WHERE entreprise_id = $1', [id]);
+  await pool.query('DELETE FROM jours_exceptionnels WHERE entreprise_id = $1', [id]);
+  if (idsUtilisateurs.length > 0) {
+    await pool.query('DELETE FROM notifications WHERE utilisateur_id = ANY($1::int[])', [idsUtilisateurs]);
+  }
+  await pool.query('DELETE FROM utilisateurs WHERE entreprise_id = $1', [id]);
+  await pool.query('DELETE FROM entreprises WHERE id = $1', [id]);
+
+  res.json({ ok: true });
+});
+
+// ============ BACK-OFFICE : gestion des utilisateurs d'une entreprise cliente ============
+app.get('/api/plateforme/entreprises/:id/utilisateurs', authentifierPlateforme, async (req, res) => {
+  const { rows } = await pool.query(
+    `SELECT u.id, u.prenom, u.nom, u.email, u.actif, u.role_id, r.nom as role
+     FROM utilisateurs u JOIN roles r ON u.role_id = r.id
+     WHERE u.entreprise_id = $1 ORDER BY u.prenom`,
+    [req.params.id]
+  );
+  res.json(rows);
+});
+
+app.post('/api/plateforme/entreprises/:id/utilisateurs', authentifierPlateforme, async (req, res) => {
+  const { prenom, nom, email, mot_de_passe, role_id } = req.body;
+  const hash = bcrypt.hashSync(mot_de_passe, 10);
+  const { rows: [user] } = await pool.query(
+    `INSERT INTO utilisateurs (entreprise_id, role_id, prenom, nom, email, mot_de_passe_hash) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
+    [req.params.id, role_id, prenom, nom, email, hash]
+  );
+  res.status(201).json({ id: user.id });
+});
+
+app.patch('/api/plateforme/entreprises/:id/utilisateurs/:userId', authentifierPlateforme, async (req, res) => {
+  const { actif, role_id, nouveau_mot_de_passe } = req.body;
+  const champs = [];
+  const valeurs = [];
+  let i = 1;
+  if (actif !== undefined) { champs.push(`actif = $${i++}`); valeurs.push(actif); }
+  if (role_id !== undefined) { champs.push(`role_id = $${i++}`); valeurs.push(role_id); }
+  if (nouveau_mot_de_passe) { champs.push(`mot_de_passe_hash = $${i++}`); valeurs.push(bcrypt.hashSync(nouveau_mot_de_passe, 10)); }
+  if (champs.length === 0) return res.status(400).json({ erreur: 'Rien à mettre à jour' });
+  valeurs.push(req.params.userId, req.params.id);
+  await pool.query(`UPDATE utilisateurs SET ${champs.join(', ')} WHERE id = $${i++} AND entreprise_id = $${i}`, valeurs);
+  res.json({ ok: true });
+});
+
+app.delete('/api/plateforme/entreprises/:id/utilisateurs/:userId', authentifierPlateforme, async (req, res) => {
+  try {
+    await pool.query('DELETE FROM utilisateurs WHERE id = $1 AND entreprise_id = $2', [req.params.userId, req.params.id]);
+    res.json({ ok: true, supprime: true });
+  } catch (err) {
+    if (err.code === '23503') {
+      await pool.query('UPDATE utilisateurs SET actif = FALSE WHERE id = $1 AND entreprise_id = $2', [req.params.userId, req.params.id]);
+      return res.json({ ok: true, supprime: false, desactive: true, message: 'Ce compte a un historique et a été désactivé au lieu d\'être supprimé.' });
+    }
+    throw err;
+  }
+});
+
+app.get('/api/plateforme/roles', authentifierPlateforme, async (req, res) => {
+  const { rows } = await pool.query('SELECT id, nom FROM roles ORDER BY id');
+  res.json(rows);
+});
+
 app.post('/api/mon-mot-de-passe', authentifier, async (req, res) => {
   const { mot_de_passe_actuel, nouveau_mot_de_passe } = req.body;
   if (!nouveau_mot_de_passe || nouveau_mot_de_passe.length < 6) {
