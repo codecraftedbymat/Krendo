@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
+import { useTranslation } from '../../LangueContext';
 
 export default function AbsencesEmploye({ utilisateur }) {
+  const { t } = useTranslation();
   const [absences, setAbsences] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [formulaireOuvert, setFormulaireOuvert] = useState(false);
@@ -22,16 +24,16 @@ export default function AbsencesEmploye({ utilisateur }) {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
         <div>
-          <h1 style={styles.titre}>Mes absences</h1>
-          <p style={styles.sousTitre}>Vos demandes d'absence et leur statut.</p>
+          <h1 style={styles.titre}>{t('titre_mes_absences')}</h1>
+          <p style={styles.sousTitre}>{t('soustitre_mes_absences')}</p>
         </div>
       </div>
-      <button style={styles.boutonPrincipal} onClick={() => setFormulaireOuvert(true)}>+ Nouvelle demande</button>
+      <button style={styles.boutonPrincipal} onClick={() => setFormulaireOuvert(true)}>{t('nouvelle_demande')}</button>
 
       {chargement ? (
-        <p style={styles.texteAttente}>Chargement...</p>
+        <p style={styles.texteAttente}>{t('chargement')}</p>
       ) : absences.length === 0 ? (
-        <p style={{ ...styles.texteAttente, marginTop: 16 }}>Aucune demande pour l'instant.</p>
+        <p style={{ ...styles.texteAttente, marginTop: 16 }}>{t('aucune_absence')}</p>
       ) : (
         <div style={{ ...styles.liste, marginTop: 16 }}>
           {absences.map((a) => (
@@ -59,15 +61,17 @@ export default function AbsencesEmploye({ utilisateur }) {
 }
 
 function StatutBadge({ statut }) {
+  const { t } = useTranslation();
   const config = {
-    en_attente: { texte: 'En attente', fond: 'var(--amber-soft)', couleur: 'var(--amber)' },
-    acceptee: { texte: 'Acceptée', fond: 'var(--emerald-soft)', couleur: 'var(--emerald)' },
-    refusee: { texte: 'Refusée', fond: 'var(--red-soft)', couleur: 'var(--red)' },
+    en_attente: { texte: t('en_attente'), fond: 'var(--amber-soft)', couleur: 'var(--amber)' },
+    acceptee: { texte: t('acceptee'), fond: 'var(--emerald-soft)', couleur: 'var(--emerald)' },
+    refusee: { texte: t('refusee'), fond: 'var(--red-soft)', couleur: 'var(--red)' },
   }[statut];
   return <span style={{ ...styles.badge, background: config.fond, color: config.couleur }}>{config.texte}</span>;
 }
 
 function FormulaireDemande({ onFermer, onCree }) {
+  const { t } = useTranslation();
   const [champ, setChamp] = useState({ date_debut: '', heure_debut: '00:00', date_fin: '', heure_fin: '23:59', motif: '' });
   const [erreur, setErreur] = useState('');
   const [envoi, setEnvoi] = useState(false);
@@ -92,38 +96,38 @@ function FormulaireDemande({ onFermer, onCree }) {
     <div style={styles.overlay} onClick={onFermer}>
       <form style={styles.panneau} onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-          <h2 style={{ fontSize: 19, margin: 0 }}>Nouvelle demande</h2>
+          <h2 style={{ fontSize: 19, margin: 0 }}>{t('nouvelle_demande').replace('+ ', '')}</h2>
           <button type="button" style={styles.fermer} onClick={onFermer}>✕</button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 18 }}>
           <label style={styles.champLabel}>
-            <span style={styles.champTexte}>Début</span>
+            <span style={styles.champTexte}>{t('champ_debut')}</span>
             <input required type="date" style={styles.input} value={champ.date_debut} onChange={(e) => set('date_debut', e.target.value)} />
           </label>
           <label style={styles.champLabel}>
-            <span style={styles.champTexte}>Heure</span>
+            <span style={styles.champTexte}>{t('champ_heure')}</span>
             <input required type="time" style={styles.input} value={champ.heure_debut} onChange={(e) => set('heure_debut', e.target.value)} />
           </label>
           <label style={styles.champLabel}>
-            <span style={styles.champTexte}>Fin</span>
+            <span style={styles.champTexte}>{t('champ_fin')}</span>
             <input required type="date" style={styles.input} value={champ.date_fin} onChange={(e) => set('date_fin', e.target.value)} />
           </label>
           <label style={styles.champLabel}>
-            <span style={styles.champTexte}>Heure</span>
+            <span style={styles.champTexte}>{t('champ_heure')}</span>
             <input required type="time" style={styles.input} value={champ.heure_fin} onChange={(e) => set('heure_fin', e.target.value)} />
           </label>
         </div>
 
         <label style={{ ...styles.champLabel, marginTop: 12 }}>
-          <span style={styles.champTexte}>Motif</span>
+          <span style={styles.champTexte}>{t('champ_motif')}</span>
           <input style={styles.input} value={champ.motif} onChange={(e) => set('motif', e.target.value)} placeholder="Congés payés, rendez-vous médical..." />
         </label>
 
         {erreur && <div style={styles.erreurForm}>{erreur}</div>}
 
         <button type="submit" disabled={envoi} style={styles.boutonEnvoyer}>
-          {envoi ? 'Envoi...' : 'Envoyer la demande'}
+          {envoi ? 'Envoi...' : t('envoyer_demande')}
         </button>
       </form>
     </div>

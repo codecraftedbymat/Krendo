@@ -397,6 +397,7 @@ function StatutBadge({ statut }) {
 }
 
 function FormulaireMission({ missionExistante, onFermer, onCree }) {
+  const { t } = useTranslation();
   const [champ, setChamp] = useState(() => missionExistante ? {
     titre: missionExistante.titre, lieu: missionExistante.lieu || '',
     date_debut: missionExistante.date_debut, heure_debut: missionExistante.heure_debut,
@@ -446,28 +447,28 @@ function FormulaireMission({ missionExistante, onFermer, onCree }) {
         </div>
 
         <div style={styles.formGrille}>
-          <Champ label="Titre" span={2}>
+          <Champ label={t('champ_titre')} span={2}>
             <input required style={styles.input} value={champ.titre} onChange={(e) => set('titre', e.target.value)} placeholder="Salon Tech Expo" />
           </Champ>
-          <Champ label="Lieu" span={2}>
+          <Champ label={t('champ_lieu')} span={2}>
             <input style={styles.input} value={champ.lieu} onChange={(e) => set('lieu', e.target.value)} placeholder="Paris Expo" />
           </Champ>
-          <Champ label="Date de début">
+          <Champ label={t('champ_date_debut')}>
             <input required type="date" style={styles.input} value={champ.date_debut} onChange={(e) => set('date_debut', e.target.value)} />
           </Champ>
-          <Champ label="Heure de début">
+          <Champ label={t('champ_heure_debut')}>
             <input required type="time" style={styles.input} value={champ.heure_debut} onChange={(e) => set('heure_debut', e.target.value)} />
           </Champ>
-          <Champ label="Date de fin">
+          <Champ label={t('champ_date_fin')}>
             <input required type="date" style={styles.input} value={champ.date_fin} onChange={(e) => set('date_fin', e.target.value)} />
           </Champ>
-          <Champ label="Heure de fin">
+          <Champ label={t('champ_heure_fin')}>
             <input required type="time" style={styles.input} value={champ.heure_fin} onChange={(e) => set('heure_fin', e.target.value)} />
           </Champ>
-          <Champ label="Employés requis">
+          <Champ label={t('champ_employes_requis')}>
             <input required type="number" min="1" style={styles.input} value={champ.nb_employes_requis} onChange={(e) => set('nb_employes_requis', e.target.value)} />
           </Champ>
-          <Champ label="Description" span={2}>
+          <Champ label={t('champ_description')} span={2}>
             <textarea style={{ ...styles.input, resize: 'vertical', minHeight: 60 }} value={champ.description} onChange={(e) => set('description', e.target.value)} />
           </Champ>
         </div>

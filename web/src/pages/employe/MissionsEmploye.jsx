@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
+import { useTranslation } from '../../LangueContext';
 
 export default function MissionsEmploye({ utilisateur }) {
+  const { t } = useTranslation();
   const [missions, setMissions] = useState([]);
   const [reponses, setReponses] = useState({});
   const [chargement, setChargement] = useState(true);
@@ -33,16 +35,16 @@ export default function MissionsEmploye({ utilisateur }) {
 
   return (
     <div>
-      <h1 style={styles.titre}>Mes missions</h1>
-      <p style={styles.sousTitre}>Confirmez votre disponibilité pour chaque mission.</p>
+      <h1 style={styles.titre}>{t('titre_mes_missions')}</h1>
+      <p style={styles.sousTitre}>{t('soustitre_mes_missions')}</p>
 
       {chargement ? (
-        <p style={styles.texteAttente}>Chargement...</p>
+        <p style={styles.texteAttente}>{t('chargement')}</p>
       ) : (
         <>
           {aTraiter.length > 0 && (
             <>
-              <p style={styles.sectionLabel}>À confirmer ({aTraiter.length})</p>
+              <p style={styles.sectionLabel}>{t('a_confirmer')} ({aTraiter.length})</p>
               <div style={styles.liste}>
                 {aTraiter.map((m) => (
                   <CarteMission key={m.id} mission={m} reponse={reponses[m.id]} onOuvrir={() => setMissionOuverte(m)} />
@@ -51,9 +53,9 @@ export default function MissionsEmploye({ utilisateur }) {
             </>
           )}
 
-          <p style={{ ...styles.sectionLabel, marginTop: aTraiter.length ? 24 : 0 }}>Autres missions</p>
+          <p style={{ ...styles.sectionLabel, marginTop: aTraiter.length ? 24 : 0 }}>{t('autres_missions')}</p>
           {traitees.length === 0 ? (
-            <p style={styles.texteAttente}>Aucune autre mission pour l'instant.</p>
+            <p style={styles.texteAttente}>{t('aucune_mission')}</p>
           ) : (
             <div style={styles.liste}>
               {traitees.map((m) => (
@@ -92,15 +94,17 @@ function CarteMission({ mission, reponse, onOuvrir }) {
 }
 
 function StatutBadge({ statut }) {
+  const { t } = useTranslation();
   const config = {
-    en_attente: { texte: 'En attente', fond: 'var(--amber-soft)', couleur: 'var(--amber)' },
-    disponible: { texte: 'Disponible', fond: 'var(--emerald-soft)', couleur: 'var(--emerald)' },
-    indisponible: { texte: 'Indisponible', fond: 'var(--red-soft)', couleur: 'var(--red)' },
+    en_attente: { texte: t('en_attente'), fond: 'var(--amber-soft)', couleur: 'var(--amber)' },
+    disponible: { texte: t('disponible'), fond: 'var(--emerald-soft)', couleur: 'var(--emerald)' },
+    indisponible: { texte: t('indisponible'), fond: 'var(--red-soft)', couleur: 'var(--red)' },
   }[statut] || { texte: '—', fond: 'var(--canvas)', couleur: 'var(--text-muted)' };
   return <span style={{ ...styles.badge, background: config.fond, color: config.couleur }}>{config.texte}</span>;
 }
 
 function PanneauReponse({ mission, reponse, onFermer, onRepondu }) {
+  const { t } = useTranslation();
   const [commentaire, setCommentaire] = useState('');
   const [envoi, setEnvoi] = useState(false);
 
@@ -143,8 +147,8 @@ function PanneauReponse({ mission, reponse, onFermer, onRepondu }) {
         </label>
 
         <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
-          <button disabled={envoi} style={styles.boutonDisponible} onClick={() => repondre('disponible')}>Disponible</button>
-          <button disabled={envoi} style={styles.boutonIndisponible} onClick={() => repondre('indisponible')}>Indisponible</button>
+          <button disabled={envoi} style={styles.boutonDisponible} onClick={() => repondre('disponible')}>{t('disponible')}</button>
+          <button disabled={envoi} style={styles.boutonIndisponible} onClick={() => repondre('indisponible')}>{t('indisponible')}</button>
         </div>
       </div>
     </div>

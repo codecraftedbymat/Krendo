@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { api } from '../../lib/api';
+import { useTranslation } from '../../LangueContext';
 
 export default function Profil({ utilisateur }) {
+  const { t } = useTranslation();
   const [actuel, setActuel] = useState('');
   const [nouveau, setNouveau] = useState('');
   const [confirmation, setConfirmation] = useState('');
@@ -31,7 +33,7 @@ export default function Profil({ utilisateur }) {
 
   return (
     <div>
-      <h1 style={styles.titre}>Profil</h1>
+      <h1 style={styles.titre}>{t('titre_profil')}</h1>
 
       <div style={styles.carteInfo}>
         <div style={styles.avatar}>{utilisateur.prenom[0]}{utilisateur.nom[0]}</div>
@@ -42,18 +44,18 @@ export default function Profil({ utilisateur }) {
         </div>
       </div>
 
-      <p style={styles.sectionLabel}>Changer mon mot de passe</p>
+      <p style={styles.sectionLabel}>{t('changer_mot_de_passe')}</p>
       <form onSubmit={handleSubmit} style={styles.form}>
         <label style={styles.champLabel}>
-          <span style={styles.champTexte}>Mot de passe actuel</span>
+          <span style={styles.champTexte}>{t('mot_de_passe_actuel')}</span>
           <input required type="password" style={styles.input} value={actuel} onChange={(e) => setActuel(e.target.value)} />
         </label>
         <label style={styles.champLabel}>
-          <span style={styles.champTexte}>Nouveau mot de passe</span>
+          <span style={styles.champTexte}>{t('nouveau_mot_de_passe')}</span>
           <input required type="password" style={styles.input} value={nouveau} onChange={(e) => setNouveau(e.target.value)} placeholder="Au moins 6 caractères" />
         </label>
         <label style={styles.champLabel}>
-          <span style={styles.champTexte}>Confirmer</span>
+          <span style={styles.champTexte}>{t('confirmer_mot_de_passe')}</span>
           <input required type="password" style={styles.input} value={confirmation} onChange={(e) => setConfirmation(e.target.value)} />
         </label>
 
@@ -61,7 +63,7 @@ export default function Profil({ utilisateur }) {
         {succes && <div style={styles.succes}>Mot de passe mis à jour.</div>}
 
         <button type="submit" disabled={envoi} style={styles.bouton}>
-          {envoi ? 'Enregistrement...' : 'Mettre à jour le mot de passe'}
+          {envoi ? 'Enregistrement...' : t('mettre_a_jour')}
         </button>
       </form>
     </div>
