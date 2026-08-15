@@ -20,6 +20,8 @@ ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS jours_travailles TEXT NOT NULL 
 ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS travaille_jours_feries BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS compte_gratuit BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS note_interne TEXT;
+ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS stripe_customer_id TEXT;
+ALTER TABLE entreprises ADD COLUMN IF NOT EXISTS stripe_subscription_id TEXT;
 
 CREATE TABLE IF NOT EXISTS jours_exceptionnels (
   id SERIAL PRIMARY KEY,

@@ -7,6 +7,7 @@ import crypto from 'crypto';
 import rateLimit from 'express-rate-limit';
 import { pool, initDb } from './db.js';
 import { envoyerEmail, modelesEmail } from './email.js';
+import { stripe, creerSessionCheckout, synchroniserQuantiteStripe } from './stripe.js';
 
 const app = express();
 app.use(helmet({
@@ -28,6 +29,58 @@ app.use(cors({
     callback(new Error('Origine non autorisée par CORS'));
   },
 }));
+
+// IMPORTANT : la route webhook Stripe doit recevoir le corps BRUT (pas JSON) pour
+// pouvoir vérifier la signature Stripe. Elle est donc déclarée AVANT express.json().
+app.post('/api/webhook-stripe', express.raw({ type: 'application/json' }), async (req, res) => {
+  if (!stripe || !process.env.STRIPE_WEBHOOK_SECRET) {
+    return res.status(503).send('Stripe non configuré.');
+  }
+
+  let event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, req.headers['stripe-signature'], process.env.STRIPE_WEBHOOK_SECRET);
+  } catch (err) {
+    console.error('Signature webhook Stripe invalide:', err.message);
+    return res.status(400).send(`Webhook Error: ${err.message}`);
+  }
+
+  try {
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const entrepriseId = session.metadata?.entreprise_id;
+      if (entrepriseId) {
+        await pool.query(
+          `UPDATE entreprises SET statut_abonnement = 'actif', stripe_customer_id = $1, stripe_subscription_id = $2 WHERE id = $3`,
+          [session.customer, session.subscription, entrepriseId]
+        );
+        console.log(`Entreprise ${entrepriseId} passée en 'actif' suite au paiement Stripe.`);
+      }
+    }
+
+    if (event.type === 'invoice.payment_failed') {
+      const invoice = event.data.object;
+      await pool.query(
+        `UPDATE entreprises SET statut_abonnement = 'suspendu' WHERE stripe_customer_id = $1`,
+        [invoice.customer]
+      );
+    }
+
+    if (event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object;
+      await pool.query(
+        `UPDATE entreprises SET statut_abonnement = 'resilie' WHERE stripe_subscription_id = $1`,
+        [subscription.id]
+      );
+    }
+
+    res.json({ recu: true });
+  } catch (err) {
+    console.error('Erreur traitement webhook Stripe:', err.message);
+    res.status(500).send('Erreur interne');
+  }
+});
+
 app.use(express.json({ limit: '8mb' }));
 
 // Anti brute-force : limite les tentatives de connexion (8 essais / 15 min / IP)
@@ -344,6 +397,7 @@ app.post('/api/utilisateurs', authentifier, requiresPermission('peut_gerer_compt
     `INSERT INTO utilisateurs (entreprise_id, role_id, prenom, nom, email, mot_de_passe_hash, cree_par_utilisateur_id) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
     [req.utilisateur.entreprise_id, role_id, prenom, nom, email, hash, req.utilisateur.id]
   );
+  synchroniserQuantiteStripe(pool, req.utilisateur.entreprise_id).catch(() => {});
   res.status(201).json({ id: user.id });
 });
 
@@ -357,6 +411,7 @@ app.patch('/api/utilisateurs/:id', authentifier, requiresPermission('peut_gerer_
   if (champs.length === 0) return res.status(400).json({ erreur: 'Rien à mettre à jour' });
   valeurs.push(req.params.id, req.utilisateur.entreprise_id);
   await pool.query(`UPDATE utilisateurs SET ${champs.join(', ')} WHERE id = $${i++} AND entreprise_id = $${i}`, valeurs);
+  if (actif !== undefined) synchroniserQuantiteStripe(pool, req.utilisateur.entreprise_id).catch(() => {});
   res.json({ ok: true });
 });
 
@@ -826,6 +881,38 @@ app.delete('/api/plateforme/entreprises/:id/utilisateurs/:userId', authentifierP
 app.get('/api/plateforme/roles', authentifierPlateforme, async (req, res) => {
   const { rows } = await pool.query('SELECT id, nom FROM roles ORDER BY id');
   res.json(rows);
+});
+
+// Génère un lien de paiement Stripe (abonnement) pour une entreprise, à envoyer au client.
+app.post('/api/plateforme/entreprises/:id/checkout', authentifierPlateforme, async (req, res) => {
+  try {
+    const { rows: [entreprise] } = await pool.query('SELECT * FROM entreprises WHERE id = $1', [req.params.id]);
+    if (!entreprise) return res.status(404).json({ erreur: 'Entreprise introuvable.' });
+
+    const { rows: [{ count }] } = await pool.query(
+      `SELECT COUNT(*) FROM utilisateurs u JOIN roles r ON u.role_id = r.id
+       WHERE u.entreprise_id = $1 AND r.nom = 'Employé' AND u.actif = TRUE`,
+      [req.params.id]
+    );
+
+    const { rows: [admin] } = await pool.query(
+      `SELECT u.email FROM utilisateurs u JOIN roles r ON u.role_id = r.id
+       WHERE u.entreprise_id = $1 AND r.nom = 'Super admin' AND u.actif = TRUE LIMIT 1`,
+      [req.params.id]
+    );
+
+    const session = await creerSessionCheckout({
+      entrepriseId: entreprise.id,
+      nomEntreprise: entreprise.nom,
+      emailAdmin: admin?.email,
+      quantite: Number(count),
+      urlBase: process.env.FRONTEND_URL || 'https://krendo-web-production-a8b0.up.railway.app',
+    });
+
+    res.json({ url: session.url });
+  } catch (err) {
+    res.status(500).json({ erreur: err.message });
+  }
 });
 
 app.post('/api/mon-mot-de-passe', authentifier, async (req, res) => {
