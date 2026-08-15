@@ -31,13 +31,19 @@ export default function BandeauAbonnement({ utilisateur }) {
 
   return (
     <div style={{ ...styles.bandeau, ...(suspendu ? styles.bandeauSuspendu : {}) }}>
-      <span style={styles.texte}>
-        {suspendu
-          ? "Votre abonnement est suspendu. Réactivez-le pour retrouver l'accès complet."
-          : "Vous êtes en période d'essai. Passez à l'abonnement pour continuer sans interruption."}
-      </span>
+      <div style={styles.texteZone}>
+        <span style={styles.titre}>
+          {suspendu ? '⏸ Accès suspendu' : '✨ Période d\'essai en cours'}
+        </span>
+        <span style={styles.texte}>
+          {suspendu
+            ? "Réglez votre abonnement pour retrouver l'accès immédiatement."
+            : "Passez à l'abonnement pour ne jamais perdre l'accès à votre équipe."}
+        </span>
+      </div>
       <button style={styles.bouton} onClick={payer} disabled={chargement}>
-        {chargement ? 'Redirection...' : "S'abonner (3€ / employé actif / mois)"}
+        {chargement ? 'Redirection...' : suspendu ? 'Réactiver mon abonnement' : 'Activer mon abonnement'}
+        {!chargement && <span style={styles.prix}>3€ / employé / mois</span>}
       </button>
       {erreur && <span style={styles.erreur}>{erreur}</span>}
     </div>
@@ -46,14 +52,18 @@ export default function BandeauAbonnement({ utilisateur }) {
 
 const styles = {
   bandeau: {
-    display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap',
-    background: 'var(--amber-soft)', color: '#8A6416', padding: '10px 20px', fontSize: 13,
+    display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap',
+    background: 'linear-gradient(90deg, #FBF1DE, #F5E6C8)', color: '#8A6416', padding: '12px 24px', fontSize: 13,
   },
-  bandeauSuspendu: { background: 'var(--red-soft)', color: 'var(--red)' },
-  texte: { flex: 1, fontWeight: 600 },
+  bandeauSuspendu: { background: 'linear-gradient(90deg, #FBEBEB, #F7DADA)', color: 'var(--red)' },
+  texteZone: { display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 200 },
+  titre: { fontWeight: 800, fontSize: 13.5 },
+  texte: { fontWeight: 500, opacity: 0.9 },
   bouton: {
-    background: 'var(--ink)', color: 'white', border: 'none', borderRadius: 7,
-    padding: '7px 14px', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap',
+    display: 'flex', alignItems: 'center', gap: 8,
+    background: 'var(--ink)', color: 'white', border: 'none', borderRadius: 8,
+    padding: '9px 16px', fontSize: 13, fontWeight: 700, whiteSpace: 'nowrap',
   },
+  prix: { fontSize: 10.5, fontWeight: 600, opacity: 0.65, borderLeft: '1px solid rgba(255,255,255,0.3)', paddingLeft: 8 },
   erreur: { fontSize: 11.5, color: 'var(--red)' },
 };
