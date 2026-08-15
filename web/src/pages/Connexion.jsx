@@ -84,9 +84,6 @@ function FormulaireConnexion({ onConnecte, onMotDePasseOublie }) {
         </button>
       </form>
 
-      <p style={styles.note}>
-        Pas de compte ? Seul un administrateur peut vous en créer un.
-      </p>
       <p style={styles.liensLegaux}>
         <Link to="/cgu" style={styles.lienLegal}>CGU</Link>
         <span> · </span>
