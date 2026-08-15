@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../lib/api';
+import { useTranslation } from '../LangueContext';
 
 export default function Chat({ utilisateur }) {
+  const { t } = useTranslation();
   const [conversations, setConversations] = useState([]);
   const [conversationActive, setConversationActive] = useState(null);
   const [chargement, setChargement] = useState(true);
@@ -34,7 +36,7 @@ export default function Chat({ utilisateur }) {
     <div style={styles.page}>
       <div style={styles.colonneListe}>
         <div style={styles.listeEntete}>
-          <h1 style={styles.titre}>Messages</h1>
+          <h1 style={styles.titre}>{t('titre_messages')}</h1>
           <button style={styles.boutonNouveau} title="Nouvelle conversation" onClick={() => setNouvelleConvOuverte(true)}>+</button>
         </div>
         {chargement ? (

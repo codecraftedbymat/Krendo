@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { useTranslation } from '../LangueContext';
 
 const JOURS = [
   { id: 1, label: 'Lundi' }, { id: 2, label: 'Mardi' }, { id: 3, label: 'Mercredi' },
@@ -7,6 +8,7 @@ const JOURS = [
 ];
 
 export default function Parametres() {
+  const { t } = useTranslation();
   const [donnees, setDonnees] = useState(null);
   const [chargement, setChargement] = useState(true);
   const [enregistrement, setEnregistrement] = useState(false);
@@ -45,8 +47,8 @@ export default function Parametres() {
 
   return (
     <div style={{ maxWidth: 640 }}>
-      <h1 style={styles.titre}>Paramètres</h1>
-      <p style={styles.sousTitre}>Configurez les jours d'activité de {donnees.nom}.</p>
+      <h1 style={styles.titre}>{t('titre_parametres')}</h1>
+      <p style={styles.sousTitre}>{t('soustitre_parametres')}</p>
 
       <div style={styles.bloc}>
         <p style={styles.blocTitre}>Jours travaillés</p>

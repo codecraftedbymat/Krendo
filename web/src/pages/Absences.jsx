@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { useTranslation } from '../LangueContext';
 
 export default function Absences({ utilisateur }) {
+  const { t } = useTranslation();
   const [absences, setAbsences] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [formulaireOuvert, setFormulaireOuvert] = useState(false);
@@ -33,12 +35,12 @@ export default function Absences({ utilisateur }) {
     <div>
       <div style={styles.entete}>
         <div>
-          <h1 style={styles.titre}>Absences</h1>
-          <p style={styles.sousTitre}>Validez les demandes d'absence de votre équipe. Cliquez sur une ligne pour la modifier ou la supprimer.</p>
+          <h1 style={styles.titre}>{t('titre_absences')}</h1>
+          <p style={styles.sousTitre}>{t('soustitre_absences')}</p>
         </div>
         {peutGererPourAutrui && (
           <button style={styles.boutonPrincipal} onClick={() => setFormulaireOuvert(true)}>
-            + Mettre en congé
+            {t('nouveau_conge')}
           </button>
         )}
       </div>
@@ -62,8 +64,8 @@ export default function Absences({ utilisateur }) {
                       </div>
                     </div>
                     <div style={{ display: 'flex', gap: 6 }}>
-                      <button style={styles.boutonAccepter} onClick={(e) => traiter(e, a.id, 'acceptee')}>Accepter</button>
-                      <button style={styles.boutonRefuser} onClick={(e) => traiter(e, a.id, 'refusee')}>Refuser</button>
+                      <button style={styles.boutonAccepter} onClick={(e) => traiter(e, a.id, 'acceptee')}>{t('accepter')}</button>
+                      <button style={styles.boutonRefuser} onClick={(e) => traiter(e, a.id, 'refusee')}>{t('refuser')}</button>
                     </div>
                   </div>
                 ))}

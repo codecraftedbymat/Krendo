@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../lib/api';
+import { useTranslation } from '../LangueContext';
 
 export default function Missions({ utilisateur }) {
+  const { t } = useTranslation();
   const [missions, setMissions] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [missionOuverte, setMissionOuverte] = useState(null);
@@ -27,12 +29,12 @@ export default function Missions({ utilisateur }) {
     <div>
       <div style={styles.entete}>
         <div>
-          <h1 style={styles.titre}>Missions</h1>
-          <p style={styles.sousTitre}>Créez une mission et suivez les disponibilités de votre équipe.</p>
+          <h1 style={styles.titre}>{t('titre_missions')}</h1>
+          <p style={styles.sousTitre}>{t('soustitre_missions')}</p>
         </div>
         {peutCreer && (
           <button style={styles.boutonPrincipal} onClick={() => setFormulaireOuvert(true)}>
-            + Nouvelle mission
+            {t('nouvelle_mission')}
           </button>
         )}
       </div>

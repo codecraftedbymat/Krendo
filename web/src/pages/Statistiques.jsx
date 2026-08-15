@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { useTranslation } from '../LangueContext';
 
 export default function Statistiques() {
+  const { t } = useTranslation();
   const [mois, setMois] = useState(new Date().toISOString().slice(0, 7));
   const [stats, setStats] = useState(null);
   const [chargement, setChargement] = useState(true);
@@ -29,8 +31,8 @@ export default function Statistiques() {
     <div>
       <div style={styles.entete}>
         <div>
-          <h1 style={styles.titre}>Statistiques</h1>
-          <p style={styles.sousTitre}>Vue d'ensemble de l'activité de votre équipe.</p>
+          <h1 style={styles.titre}>{t('titre_statistiques')}</h1>
+          <p style={styles.sousTitre}>{t('soustitre_statistiques')}</p>
         </div>
         <div style={styles.navMois}>
           <button style={styles.boutonNav} onClick={() => changerMois(-1)}>←</button>

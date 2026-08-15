@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { useTranslation } from '../LangueContext';
 
 export default function Heures({ utilisateur }) {
+  const { t } = useTranslation();
   const [creneaux, setCreneaux] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [edition, setEdition] = useState(null);
@@ -37,12 +39,12 @@ export default function Heures({ utilisateur }) {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={styles.titre}>Heures</h1>
-          <p style={styles.sousTitre}>Validez ou modifiez les heures de toute l'équipe, tous chantiers confondus.</p>
+          <h1 style={styles.titre}>{t('titre_heures')}</h1>
+          <p style={styles.sousTitre}>{t('soustitre_heures')}</p>
         </div>
         {peutValider && (
           <button style={styles.boutonExport} onClick={exporter} disabled={export_}>
-            {export_ ? 'Export...' : '⬇ Exporter en CSV (heures validées)'}
+            {export_ ? 'Export...' : t('exporter_csv')}
           </button>
         )}
       </div>

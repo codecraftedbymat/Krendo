@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { useTranslation } from '../LangueContext';
 
 const JOURS = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const MOIS = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 
 export default function Planning() {
+  const { t } = useTranslation();
   const [missions, setMissions] = useState([]);
   const [absences, setAbsences] = useState([]);
   const [parametres, setParametres] = useState(null);
@@ -53,8 +55,8 @@ export default function Planning() {
 
       <div style={styles.entete}>
         <div>
-          <h1 style={styles.titre}>Planning</h1>
-          <p style={styles.sousTitre}>Vue d'ensemble des missions et absences de l'équipe.</p>
+          <h1 style={styles.titre}>{t('titre_planning')}</h1>
+          <p style={styles.sousTitre}>{t('soustitre_planning')}</p>
         </div>
         <div style={styles.navMois}>
           <button style={styles.boutonNav} onClick={() => setCurseur(ajouterMois(curseur, -1))}>←</button>

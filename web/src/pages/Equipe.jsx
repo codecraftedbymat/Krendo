@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { useTranslation } from '../LangueContext';
 
 export default function Equipe({ utilisateur }) {
+  const { t } = useTranslation();
   const [utilisateurs, setUtilisateurs] = useState([]);
   const [roles, setRoles] = useState([]);
   const [chargement, setChargement] = useState(true);
@@ -43,13 +45,11 @@ export default function Equipe({ utilisateur }) {
     <div>
       <div style={styles.entete}>
         <div>
-          <h1 style={styles.titre}>Équipe</h1>
-          <p style={styles.sousTitre}>
-            {peutGererComptes ? 'Les comptes de votre entreprise.' : 'Les comptes de votre entreprise. Seul un admin peut en créer.'}
-          </p>
+          <h1 style={styles.titre}>{t('titre_equipe')}</h1>
+          <p style={styles.sousTitre}>{t('soustitre_equipe')}</p>
         </div>
         {peutGererComptes && (
-          <button style={styles.boutonPrincipal} onClick={() => setFormulaireOuvert(true)}>+ Ajouter un compte</button>
+          <button style={styles.boutonPrincipal} onClick={() => setFormulaireOuvert(true)}>{t('ajouter_compte')}</button>
         )}
       </div>
 
