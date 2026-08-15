@@ -33,7 +33,7 @@ export default function BandeauAbonnement({ utilisateur }) {
     <div style={{ ...styles.bandeau, ...(suspendu ? styles.bandeauSuspendu : {}) }}>
       <div style={styles.texteZone}>
         <span style={styles.titre}>
-          {suspendu ? '⏸ Accès suspendu' : '✨ Période d\'essai en cours'}
+          {suspendu ? 'Accès suspendu' : 'Période d\'essai en cours'}
         </span>
         <span style={styles.texte}>
           {suspendu
