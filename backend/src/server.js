@@ -683,13 +683,16 @@ app.post('/api/mon-entreprise/checkout', authentifier, requiresPermission('peut_
     );
     const { rows: [moi] } = await pool.query('SELECT email FROM utilisateurs WHERE id = $1', [req.utilisateur.id]);
 
+    const urlBase = process.env.FRONTEND_URL || 'https://krendo-web-production-a8b0.up.railway.app';
     const session = await creerSessionCheckout({
       entrepriseId: entreprise.id,
       nomEntreprise: entreprise.nom,
       emailAdmin: moi.email,
       quantite: Number(count),
-      urlBase: process.env.FRONTEND_URL || 'https://krendo-web-production-a8b0.up.railway.app',
+      urlBase,
       plan: req.body?.plan === 'annuel' ? 'annuel' : 'mensuel',
+      successUrl: `${urlBase}/?paiement=succes`,
+      cancelUrl: `${urlBase}/?paiement=annule`,
     });
 
     res.json({ url: session.url });
