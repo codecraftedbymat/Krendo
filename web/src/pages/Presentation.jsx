@@ -49,7 +49,7 @@ export default function Presentation() {
           <div style={styles.piedLiens}>
             <Link to="/cgu" style={styles.piedLien}>CGU</Link>
             <Link to="/confidentialite" style={styles.piedLien}>Confidentialité</Link>
-            <a href="mailto:contact@krendo.app" style={styles.piedLien}>contact@krendo.app</a>
+            <a href="mailto:alainbiloba@gmail.com" style={styles.piedLien}>alainbiloba@gmail.com</a>
           </div>
         </div>
       </footer>
