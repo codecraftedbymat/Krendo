@@ -42,19 +42,19 @@ export default function Statistiques() {
       </div>
 
       {chargement || !stats ? (
-        <p style={styles.texteAttente}>Chargement...</p>
+        <p style={styles.texteAttente}>{t('chargement')}</p>
       ) : (
         <>
           <div style={styles.cartesResume}>
-            <CarteResume label="Heures validées" valeur={`${stats.total_heures}h`} />
-            <CarteResume label="Missions ce mois" valeur={stats.nb_missions} />
-            <CarteResume label="Taux de remplissage moyen" valeur={`${stats.taux_remplissage_moyen}%`} couleur={stats.taux_remplissage_moyen >= 80 ? 'var(--emerald)' : stats.taux_remplissage_moyen >= 50 ? 'var(--amber)' : 'var(--red)'} />
-            <CarteResume label="Absences en attente" valeur={stats.absences.en_attente} couleur={stats.absences.en_attente > 0 ? 'var(--amber)' : undefined} />
+            <CarteResume label={t('heures_validees')} valeur={`${stats.total_heures}h`} />
+            <CarteResume label={t('missions_ce_mois')} valeur={stats.nb_missions} />
+            <CarteResume label={t('taux_remplissage_moyen')} valeur={`${stats.taux_remplissage_moyen}%`} couleur={stats.taux_remplissage_moyen >= 80 ? 'var(--emerald)' : stats.taux_remplissage_moyen >= 50 ? 'var(--amber)' : 'var(--red)'} />
+            <CarteResume label={t('absences_attente')} valeur={stats.absences.en_attente} couleur={stats.absences.en_attente > 0 ? 'var(--amber)' : undefined} />
           </div>
 
-          <p style={styles.sectionLabel}>Heures par employé</p>
+          <p style={styles.sectionLabel}>{t('heures_par_employe')}</p>
           {stats.heures_par_employe.length === 0 ? (
-            <p style={styles.texteAttente}>Aucune heure validée ce mois-ci.</p>
+            <p style={styles.texteAttente}>{t('aucune_heure_validee')}</p>
           ) : (
             <div style={styles.listeBarres}>
               {stats.heures_par_employe.map((e) => (
@@ -69,9 +69,9 @@ export default function Statistiques() {
             </div>
           )}
 
-          <p style={{ ...styles.sectionLabel, marginTop: 28 }}>Remplissage des missions</p>
+          <p style={{ ...styles.sectionLabel, marginTop: 28 }}>{t('remplissage_missions')}</p>
           {stats.missions.length === 0 ? (
-            <p style={styles.texteAttente}>Aucune mission ce mois-ci.</p>
+            <p style={styles.texteAttente}>{t('aucune_mission_mois')}</p>
           ) : (
             <div style={styles.liste}>
               {stats.missions.map((m) => (
@@ -79,7 +79,7 @@ export default function Statistiques() {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 600 }}>{m.titre}</div>
                     <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                      {formatDate(m.date_debut)} · {m.nb_disponibles}/{m.nb_employes_requis} confirmés
+                      {formatDate(m.date_debut)} · {m.nb_disponibles}/{m.nb_employes_requis} {t('confirmes')}
                     </div>
                   </div>
                   <span style={{

@@ -54,7 +54,7 @@ export default function Equipe({ utilisateur }) {
       </div>
 
       {chargement ? (
-        <p style={styles.texteAttente}>Chargement...</p>
+        <p style={styles.texteAttente}>{t('chargement')}</p>
       ) : (
         <div style={styles.liste}>
           {utilisateurs.map((u) => (
@@ -65,13 +65,13 @@ export default function Equipe({ utilisateur }) {
                 <div style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>{u.email}</div>
               </div>
               <span style={styles.badgeRole}>{u.role}</span>
-              {!u.actif && <span style={styles.badgeInactif}>Désactivé</span>}
+              {!u.actif && <span style={styles.badgeInactif}>{t('desactive')}</span>}
               {peutGererComptes && u.id !== utilisateur.id && (
                 <>
                   <button style={styles.boutonToggle} onClick={() => basculerActif(u)}>
-                    {u.actif ? 'Désactiver' : 'Réactiver'}
+                    {u.actif ? t('desactiver') : t('reactiver')}
                   </button>
-                  <button style={styles.boutonSupprimer} onClick={() => supprimer(u)}>Supprimer</button>
+                  <button style={styles.boutonSupprimer} onClick={() => supprimer(u)}>{t('supprimer')}</button>
                 </>
               )}
             </div>
@@ -91,6 +91,7 @@ export default function Equipe({ utilisateur }) {
 }
 
 function FormulaireCompte({ roles, onFermer, onCree }) {
+  const { t } = useTranslation();
   const [champ, setChamp] = useState({ prenom: '', nom: '', email: '', mot_de_passe: '', role_id: '' });
   const [erreur, setErreur] = useState('');
   const [envoi, setEnvoi] = useState(false);
@@ -117,26 +118,26 @@ function FormulaireCompte({ roles, onFermer, onCree }) {
     <div style={styles.overlay} onClick={onFermer}>
       <form style={styles.panneau} onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
         <div style={styles.panneauEntete}>
-          <h2 style={styles.panneauTitre}>Nouveau compte</h2>
+          <h2 style={styles.panneauTitre}>{t('nouveau_compte')}</h2>
           <button type="button" style={styles.fermer} onClick={onFermer}>✕</button>
         </div>
 
         <div style={styles.formGrille}>
-          <Champ label="Prénom">
+          <Champ label={t('prenom')}>
             <input required style={styles.input} value={champ.prenom} onChange={(e) => set('prenom', e.target.value)} />
           </Champ>
-          <Champ label="Nom">
+          <Champ label={t('nom')}>
             <input required style={styles.input} value={champ.nom} onChange={(e) => set('nom', e.target.value)} />
           </Champ>
-          <Champ label="Email" span={2}>
+          <Champ label={t('email')} span={2}>
             <input required type="email" style={styles.input} value={champ.email} onChange={(e) => set('email', e.target.value)} />
           </Champ>
-          <Champ label="Mot de passe provisoire" span={2}>
+          <Champ label={t('mot_de_passe_provisoire')} span={2}>
             <input required type="text" style={styles.input} value={champ.mot_de_passe} onChange={(e) => set('mot_de_passe', e.target.value)} placeholder="À communiquer à la personne" />
           </Champ>
-          <Champ label="Rôle" span={2}>
+          <Champ label={t('role')} span={2}>
             <select required style={styles.input} value={champ.role_id} onChange={(e) => set('role_id', e.target.value)}>
-              <option value="">Choisir un rôle</option>
+              <option value="">{t('choisir_role')}</option>
               {roles.map((r) => <option key={r.id} value={r.id}>{r.nom}</option>)}
             </select>
           </Champ>
