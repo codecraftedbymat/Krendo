@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
+import { useTranslation } from '../LangueContext';
 
 export default function BandeauAbonnement({ utilisateur }) {
+  const { t } = useTranslation();
   const [parametres, setParametres] = useState(null);
   const [chargement, setChargement] = useState(false);
   const [erreur, setErreur] = useState('');
@@ -33,21 +35,19 @@ export default function BandeauAbonnement({ utilisateur }) {
     <div style={{ ...styles.bandeau, ...(suspendu ? styles.bandeauSuspendu : {}) }}>
       <div style={styles.texteZone}>
         <span style={styles.titre}>
-          {suspendu ? 'Accès suspendu' : 'Période d\'essai en cours'}
+          {suspendu ? t('suspendu_titre') : t('essai_titre')}
         </span>
         <span style={styles.texte}>
-          {suspendu
-            ? "Réglez votre abonnement pour retrouver l'accès immédiatement."
-            : "Passez à l'abonnement pour ne jamais perdre l'accès à votre équipe."}
+          {suspendu ? t('suspendu_texte') : t('essai_texte')}
         </span>
       </div>
       <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
         <button style={styles.boutonSecondaire} onClick={() => payer('mensuel')} disabled={chargement}>
-          Mensuel <span style={styles.prixSecondaire}>3€/employé</span>
+          {t('mensuel')} <span style={styles.prixSecondaire}>3€{t('par_employe')}</span>
         </button>
         <button style={styles.bouton} onClick={() => payer('annuel')} disabled={chargement}>
-          {chargement ? 'Redirection...' : 'Annuel'}
-          {!chargement && <span style={styles.prix}>2 mois offerts</span>}
+          {chargement ? t('redirection') : t('annuel')}
+          {!chargement && <span style={styles.prix}>{t('deux_mois_offerts')}</span>}
         </button>
       </div>
       {erreur && <span style={styles.erreur}>{erreur}</span>}

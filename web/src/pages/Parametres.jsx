@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react';
 import { api } from '../lib/api';
 import { useTranslation } from '../LangueContext';
 
-const JOURS = [
-  { id: 1, label: 'Lundi' }, { id: 2, label: 'Mardi' }, { id: 3, label: 'Mercredi' },
-  { id: 4, label: 'Jeudi' }, { id: 5, label: 'Vendredi' }, { id: 6, label: 'Samedi' }, { id: 0, label: 'Dimanche' },
+const CLES_JOURS = [
+  { id: 1, cle: 'jour_lundi' }, { id: 2, cle: 'jour_mardi' }, { id: 3, cle: 'jour_mercredi' },
+  { id: 4, cle: 'jour_jeudi' }, { id: 5, cle: 'jour_vendredi' }, { id: 6, cle: 'jour_samedi' }, { id: 0, cle: 'jour_dimanche' },
 ];
 
 export default function Parametres() {
@@ -43,7 +43,7 @@ export default function Parametres() {
     setEnregistrement(false);
   }
 
-  if (chargement || !donnees) return <p style={styles.texteAttente}>Chargement...</p>;
+  if (chargement || !donnees) return <p style={styles.texteAttente}>{t('chargement')}</p>;
 
   return (
     <div style={{ maxWidth: 640 }}>
@@ -51,18 +51,18 @@ export default function Parametres() {
       <p style={styles.sousTitre}>{t('soustitre_parametres')}</p>
 
       <div style={styles.bloc}>
-        <p style={styles.blocTitre}>Jours travaillés</p>
+        <p style={styles.blocTitre}>{t('jours_travailles')}</p>
         <p style={styles.blocDescription}>
-          Les jours cochés sont considérés comme des jours d'activité normale de l'entreprise.
+          {t('jours_travailles_desc')}
         </p>
         <div style={styles.joursGrille}>
-          {JOURS.map((j) => (
+          {CLES_JOURS.map((j) => (
             <button
               key={j.id}
               style={{ ...styles.jourBouton, ...(joursActifs.includes(j.id) ? styles.jourBoutonActif : {}) }}
               onClick={() => basculerJour(j.id)}
             >
-              {j.label}
+              {t(j.cle)}
             </button>
           ))}
         </div>
@@ -71,11 +71,9 @@ export default function Parametres() {
       <div style={styles.bloc}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <p style={styles.blocTitre}>Jours fériés</p>
+            <p style={styles.blocTitre}>{t('jours_feries')}</p>
             <p style={styles.blocDescription}>
-              {donnees.travaille_jours_feries
-                ? "L'entreprise est considérée en activité les jours fériés."
-                : "Les jours fériés sont considérés comme non travaillés, sauf exception ci-dessous."}
+              {donnees.travaille_jours_feries ? t('feries_actif_desc') : t('feries_inactif_desc')}
             </p>
           </div>
           <Interrupteur actif={donnees.travaille_jours_feries} onClick={basculerJoursFeries} />
@@ -83,10 +81,9 @@ export default function Parametres() {
       </div>
 
       <div style={styles.bloc}>
-        <p style={styles.blocTitre}>Heures maximum par semaine</p>
+        <p style={styles.blocTitre}>{t('heures_max_titre')}</p>
         <p style={styles.blocDescription}>
-          Krendo vous alertera (sans bloquer) si un employé dépasse ce seuil ou n'a pas 11h de repos entre deux missions —
-          des repères courants du droit du travail belge, à adapter selon votre secteur et votre commission paritaire.
+          {t('heures_max_desc')}
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <input
@@ -96,7 +93,7 @@ export default function Parametres() {
             onChange={(e) => setDonnees((d) => ({ ...d, heures_max_semaine: e.target.value }))}
             onBlur={(e) => api.majParametres({ heures_max_semaine: Number(e.target.value) }).then(charger)}
           />
-          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>heures / semaine</span>
+          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{t('heures_semaine_unite')}</span>
         </div>
       </div>
 
@@ -108,6 +105,7 @@ export default function Parametres() {
 }
 
 function SectionExceptions({ donnees, onChange }) {
+  const { t } = useTranslation();
   const [date, setDate] = useState('');
   const [statut, setStatut] = useState('ferme');
   const [motif, setMotif] = useState('');
@@ -127,23 +125,23 @@ function SectionExceptions({ donnees, onChange }) {
 
   return (
     <div style={styles.bloc}>
-      <p style={styles.blocTitre}>Exceptions ponctuelles</p>
+      <p style={styles.blocTitre}>{t('exceptions_ponctuelles')}</p>
       <p style={styles.blocDescription}>
-        Fermez un jour normalement travaillé, ou ouvrez exceptionnellement un jour férié ou un week-end.
+        {t('exceptions_desc')}
       </p>
 
       <form onSubmit={ajouter} style={styles.formException}>
         <input type="date" required value={date} onChange={(e) => setDate(e.target.value)} style={styles.input} />
         <select value={statut} onChange={(e) => setStatut(e.target.value)} style={styles.input}>
-          <option value="ferme">Fermer ce jour</option>
-          <option value="ouvert">Ouvrir ce jour</option>
+          <option value="ferme">{t('fermer_ce_jour')}</option>
+          <option value="ouvert">{t('ouvrir_ce_jour')}</option>
         </select>
-        <input placeholder="Motif (optionnel)" value={motif} onChange={(e) => setMotif(e.target.value)} style={{ ...styles.input, flex: 1 }} />
-        <button type="submit" style={styles.boutonAjouter}>Ajouter</button>
+        <input placeholder={t('motif_optionnel')} value={motif} onChange={(e) => setMotif(e.target.value)} style={{ ...styles.input, flex: 1 }} />
+        <button type="submit" style={styles.boutonAjouter}>{t('ajouter')}</button>
       </form>
 
       {donnees.exceptions.length === 0 ? (
-        <p style={styles.texteAttente}>Aucune exception définie.</p>
+        <p style={styles.texteAttente}>{t('aucune_exception')}</p>
       ) : (
         <div style={styles.listeExceptions}>
           {donnees.exceptions.map((ex) => (
@@ -153,7 +151,7 @@ function SectionExceptions({ donnees, onChange }) {
                 background: ex.statut === 'ferme' ? 'var(--red-soft)' : 'var(--emerald-soft)',
                 color: ex.statut === 'ferme' ? 'var(--red)' : 'var(--emerald)',
               }}>
-                {ex.statut === 'ferme' ? 'Fermé' : 'Ouvert'}
+                {ex.statut === 'ferme' ? t('ferme') : t('ouvert_statut')}
               </span>
               <span style={{ fontSize: 13, fontWeight: 600 }}>{formatDate(ex.date)}</span>
               {ex.motif && <span style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>{ex.motif}</span>}
