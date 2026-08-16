@@ -149,6 +149,8 @@ const dictionnaires = {
     envoyer: 'Envoyer',
     aucun_membre_trouve: 'Aucun membre trouvé.',
     reprendre: 'Reprendre',
+    envoye_statut: 'Envoyé',
+    lu_statut: 'Lu',
 
     // Bandeau abonnement
     essai_titre: "Période d'essai en cours",
@@ -327,6 +329,8 @@ const dictionnaires = {
     envoyer: 'Versturen',
     aucun_membre_trouve: 'Geen teamlid gevonden.',
     reprendre: 'Hervatten',
+    envoye_statut: 'Verzonden',
+    lu_statut: 'Gelezen',
 
     essai_titre: 'Proefperiode actief',
     essai_texte: 'Neem een abonnement om nooit de toegang tot uw team te verliezen.',

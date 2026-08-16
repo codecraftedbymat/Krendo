@@ -37,12 +37,12 @@ export default function Chat({ utilisateur }) {
       <div style={styles.colonneListe}>
         <div style={styles.listeEntete}>
           <h1 style={styles.titre}>{t('titre_messages')}</h1>
-          <button style={styles.boutonNouveau} title="Nouvelle conversation" onClick={() => setNouvelleConvOuverte(true)}>+</button>
+          <button style={styles.boutonNouveau} title={t('nouvelle_conversation')} onClick={() => setNouvelleConvOuverte(true)}>+</button>
         </div>
         {chargement ? (
-          <p style={styles.texteAttente}>Chargement...</p>
+          <p style={styles.texteAttente}>{t('chargement')}</p>
         ) : conversations.length === 0 ? (
-          <p style={styles.texteAttente}>Aucune conversation. Cliquez sur + pour en démarrer une.</p>
+          <p style={styles.texteAttente}>{t('aucune_conversation')}</p>
         ) : (
           <div style={styles.listeConv}>
             {conversations.map((c) => {
@@ -59,7 +59,7 @@ export default function Chat({ utilisateur }) {
                   <div style={styles.avatarPetit}>{autre.prenom[0]}{autre.nom[0]}</div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 600 }}>{autre.prenom} {autre.nom}</div>
-                    <div style={styles.dernierMessage}>{c.dernier_message || 'Nouvelle conversation'}</div>
+                    <div style={styles.dernierMessage}>{c.dernier_message || t('nouvelle_conversation')}</div>
                   </div>
                   {nonLu && <div style={styles.pointNonLu} />}
                 </button>
@@ -78,7 +78,7 @@ export default function Chat({ utilisateur }) {
             onMessageEnvoye={charger}
           />
         ) : (
-          <div style={styles.vide}>Sélectionnez une conversation</div>
+          <div style={styles.vide}>{t('selectionner_conversation')}</div>
         )}
       </div>
 
@@ -95,6 +95,7 @@ export default function Chat({ utilisateur }) {
 }
 
 function NouvelleConversation({ utilisateur, conversationsExistantes, onFermer, onChoisir }) {
+  const { t } = useTranslation();
   const [membres, setMembres] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [recherche, setRecherche] = useState('');
@@ -119,22 +120,22 @@ function NouvelleConversation({ utilisateur, conversationsExistantes, onFermer, 
     <div style={styles.overlay} onClick={onFermer}>
       <div style={styles.panneauNouveau} onClick={(e) => e.stopPropagation()}>
         <div style={styles.panneauEntete}>
-          <h2 style={styles.panneauTitre}>Nouvelle conversation</h2>
+          <h2 style={styles.panneauTitre}>{t('nouvelle_conversation')}</h2>
           <button style={styles.fermer} onClick={onFermer}>✕</button>
         </div>
 
         <input
           autoFocus
-          placeholder="Rechercher un membre..."
+          placeholder={t('rechercher_membre')}
           value={recherche}
           onChange={(e) => setRecherche(e.target.value)}
           style={styles.inputRecherche}
         />
 
         {chargement ? (
-          <p style={styles.texteAttente}>Chargement...</p>
+          <p style={styles.texteAttente}>{t('chargement')}</p>
         ) : filtres.length === 0 ? (
-          <p style={styles.texteAttente}>Aucun membre trouvé.</p>
+          <p style={styles.texteAttente}>{t('aucun_membre_trouve')}</p>
         ) : (
           <div style={styles.listeMembres}>
             {filtres.map((m) => {
@@ -146,7 +147,7 @@ function NouvelleConversation({ utilisateur, conversationsExistantes, onFermer, 
                     <div style={{ fontSize: 13.5, fontWeight: 600 }}>{m.prenom} {m.nom}</div>
                     <div style={{ fontSize: 11.5, color: 'var(--text-secondary)' }}>{m.role}</div>
                   </div>
-                  {existe && <span style={styles.etiquetteExiste}>Reprendre</span>}
+                  {existe && <span style={styles.etiquetteExiste}>{t('reprendre')}</span>}
                 </button>
               );
             })}
@@ -158,6 +159,7 @@ function NouvelleConversation({ utilisateur, conversationsExistantes, onFermer, 
 }
 
 function FenetreMessages({ conversation, utilisateur, onMessageEnvoye }) {
+  const { t } = useTranslation();
   const [messages, setMessages] = useState([]);
   const [texte, setTexte] = useState('');
   const [chargement, setChargement] = useState(true);
@@ -231,7 +233,7 @@ function FenetreMessages({ conversation, utilisateur, onMessageEnvoye }) {
 
       <div style={styles.zoneMessages}>
         {chargement ? (
-          <p style={styles.texteAttente}>Chargement...</p>
+          <p style={styles.texteAttente}>{t('chargement')}</p>
         ) : (
           messages.map((m) => {
             const estMoi = m.expediteur_utilisateur_id === utilisateur.id;
@@ -244,7 +246,7 @@ function FenetreMessages({ conversation, utilisateur, onMessageEnvoye }) {
                   {m.contenu && <div style={m.piece_jointe_data ? { marginTop: 6 } : undefined}>{m.contenu}</div>}
                 </div>
                 {estMoi && (
-                  <span style={styles.statutMessage}>{m.lu ? 'Lu ✓✓' : 'Envoyé ✓'}</span>
+                  <span style={styles.statutMessage}>{m.lu ? `${t('lu_statut')} ✓✓` : `${t('envoye_statut')} ✓`}</span>
                 )}
               </div>
             );
@@ -273,9 +275,9 @@ function FenetreMessages({ conversation, utilisateur, onMessageEnvoye }) {
           style={styles.inputMessage}
           value={texte}
           onChange={(e) => setTexte(e.target.value)}
-          placeholder="Écrire un message..."
+          placeholder={t('ecrire_message')}
         />
-        <button type="submit" disabled={envoi} style={styles.boutonEnvoyer}>{envoi ? '...' : 'Envoyer'}</button>
+        <button type="submit" disabled={envoi} style={styles.boutonEnvoyer}>{envoi ? '...' : t('envoyer')}</button>
       </form>
     </>
   );
