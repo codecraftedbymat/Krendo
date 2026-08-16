@@ -51,10 +51,10 @@ export default function Heures({ utilisateur }) {
 
       <div style={styles.filtres}>
         {[
-          { id: 'en_attente', label: 'À valider' },
-          { id: 'valide', label: 'Validées' },
-          { id: 'annule', label: 'Annulées' },
-          { id: 'tous', label: 'Tout' },
+          { id: 'en_attente', label: t('a_valider') },
+          { id: 'valide', label: t('validees') },
+          { id: 'annule', label: t('annulees') },
+          { id: 'tous', label: t('tout') },
         ].map((f) => (
           <button
             key={f.id}
@@ -67,9 +67,9 @@ export default function Heures({ utilisateur }) {
       </div>
 
       {chargement ? (
-        <p style={styles.texteAttente}>Chargement...</p>
+        <p style={styles.texteAttente}>{t('chargement')}</p>
       ) : filtres.length === 0 ? (
-        <p style={styles.texteAttente}>Rien à afficher ici.</p>
+        <p style={styles.texteAttente}>{t('aucune_donnee')}</p>
       ) : (
         <div style={styles.liste}>
           {filtres.map((c) => (
@@ -79,7 +79,7 @@ export default function Heures({ utilisateur }) {
                 <div>
                   <div style={{ fontSize: 13.5, fontWeight: 600 }}>
                     {c.prenom} {c.nom}
-                    {c.est_heure_supplementaire && <span style={styles.badgeSup}>Heure sup</span>}
+                    {c.est_heure_supplementaire && <span style={styles.badgeSup}>{t('heure_sup')}</span>}
                   </div>
                   <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
                     {c.mission_titre} · {formatDate(c.mission_date)}
@@ -99,12 +99,12 @@ export default function Heures({ utilisateur }) {
                   <StatutBadge statut={c.statut_validation} />
                   {peutValider && c.statut_validation === 'en_attente' && (
                     <>
-                      <button style={styles.boutonMini} onClick={() => api.validerCreneau(c.id, 'valide').then(charger)}>Valider</button>
-                      <button style={styles.boutonMiniAnnuler} onClick={() => api.validerCreneau(c.id, 'annule').then(charger)}>Annuler</button>
+                      <button style={styles.boutonMini} onClick={() => api.validerCreneau(c.id, 'valide').then(charger)}>{t('valider')}</button>
+                      <button style={styles.boutonMiniAnnuler} onClick={() => api.validerCreneau(c.id, 'annule').then(charger)}>{t('annuler')}</button>
                     </>
                   )}
                   {peutModifier && (
-                    <button style={styles.boutonMini} onClick={() => setEdition(c.id)}>Modifier</button>
+                    <button style={styles.boutonMini} onClick={() => setEdition(c.id)}>{t('modifier')}</button>
                   )}
                 </div>
               )}
@@ -117,6 +117,7 @@ export default function Heures({ utilisateur }) {
 }
 
 function FormulaireEdition({ creneau, onAnnuler, onEnregistre }) {
+  const { t } = useTranslation();
   const [heureDebut, setHeureDebut] = useState(creneau.heure_debut);
   const [heureFin, setHeureFin] = useState(creneau.heure_fin);
   const [heureSup, setHeureSup] = useState(creneau.est_heure_supplementaire);
@@ -134,7 +135,7 @@ function FormulaireEdition({ creneau, onAnnuler, onEnregistre }) {
       <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>à</span>
       <input type="time" value={heureFin} onChange={(e) => setHeureFin(e.target.value)} style={styles.inputHeure} />
       <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11.5, color: 'var(--text-secondary)' }}>
-        <input type="checkbox" checked={heureSup} onChange={(e) => setHeureSup(e.target.checked)} /> H. sup.
+        <input type="checkbox" checked={heureSup} onChange={(e) => setHeureSup(e.target.checked)} /> {t('heure_sup')}
       </label>
       <button style={styles.boutonMini} onClick={enregistrer}>OK</button>
       <button style={styles.boutonMiniAnnuler} onClick={onAnnuler}>✕</button>
@@ -143,10 +144,11 @@ function FormulaireEdition({ creneau, onAnnuler, onEnregistre }) {
 }
 
 function StatutBadge({ statut }) {
+  const { t } = useTranslation();
   const config = {
-    en_attente: { texte: 'À valider', fond: 'var(--amber-soft)', couleur: 'var(--amber)' },
-    valide: { texte: 'Validé', fond: 'var(--emerald-soft)', couleur: 'var(--emerald)' },
-    annule: { texte: 'Annulé', fond: 'var(--red-soft)', couleur: 'var(--red)' },
+    en_attente: { texte: t('a_valider'), fond: 'var(--amber-soft)', couleur: 'var(--amber)' },
+    valide: { texte: t('valide'), fond: 'var(--emerald-soft)', couleur: 'var(--emerald)' },
+    annule: { texte: t('annule_statut'), fond: 'var(--red-soft)', couleur: 'var(--red)' },
   }[statut];
   return <span style={{ ...styles.badge, background: config.fond, color: config.couleur }}>{config.texte}</span>;
 }

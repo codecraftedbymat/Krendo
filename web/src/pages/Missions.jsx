@@ -100,6 +100,7 @@ function CarteMission({ mission, onOuvrir }) {
 }
 
 function DetailMission({ mission, utilisateur, onFermer, onModifier, onSupprime }) {
+  const { t } = useTranslation();
   const [onglet, setOnglet] = useState('heures');
   const [reponses, setReponses] = useState([]);
   const [chargement, setChargement] = useState(true);
@@ -158,8 +159,8 @@ function DetailMission({ mission, utilisateur, onFermer, onModifier, onSupprime 
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             {peutGererMission && (
               <>
-                <button style={styles.boutonIcone} title="Modifier" onClick={onModifier}>✏️</button>
-                <button style={styles.boutonIcone} title="Supprimer" onClick={supprimer} disabled={suppression}>🗑️</button>
+                <button style={styles.boutonIcone} title={t('modifier')} onClick={onModifier}>✏️</button>
+                <button style={styles.boutonIcone} title={t('supprimer')} onClick={supprimer} disabled={suppression}>🗑️</button>
               </>
             )}
             <button style={styles.fermer} onClick={onFermer}>✕</button>
@@ -169,9 +170,9 @@ function DetailMission({ mission, utilisateur, onFermer, onModifier, onSupprime 
         {peutGererMission && (
           <div style={styles.blocVisibilite}>
             <div>
-              <p style={styles.visibiliteTitre}>Planning visible par toute l'équipe</p>
+              <p style={styles.visibiliteTitre}>{t('visible_equipe')}</p>
               <p style={styles.visibiliteDescription}>
-                {visibleTous ? "Chaque employé peut voir qui travaille et à quel poste." : "Seuls les admins voient ce planning."}
+                {visibleTous ? t('visible_equipe_oui') : t('visible_equipe_non')}
               </p>
             </div>
             <Interrupteur actif={visibleTous} onClick={basculerVisibilite} />
@@ -179,9 +180,9 @@ function DetailMission({ mission, utilisateur, onFermer, onModifier, onSupprime 
         )}
 
         <div style={styles.statsRangee}>
-          <StatBloc label="Requis" valeur={mission.nb_employes_requis} couleur="var(--ink)" />
-          <StatBloc label="Disponibles" valeur={disponibles} couleur="var(--emerald)" fond="var(--emerald-soft)" />
-          <StatBloc label="Indisponibles" valeur={indisponibles} couleur="var(--red)" fond="var(--red-soft)" />
+          <StatBloc label={t('requis')} valeur={mission.nb_employes_requis} couleur="var(--ink)" />
+          <StatBloc label={t('disponibles')} valeur={disponibles} couleur="var(--emerald)" fond="var(--emerald-soft)" />
+          <StatBloc label={t('indisponibles')} valeur={indisponibles} couleur="var(--red)" fond="var(--red-soft)" />
         </div>
 
         <BarreSegmentee disponibles={disponibles} indisponibles={indisponibles} enAttente={enAttente} />
@@ -190,11 +191,11 @@ function DetailMission({ mission, utilisateur, onFermer, onModifier, onSupprime 
           <button
             style={{ ...styles.onglet, ...(onglet === 'heures' ? styles.ongletActif : {}) }}
             onClick={() => setOnglet('heures')}
-          >Planning</button>
+          >{t('onglet_planning')}</button>
           <button
             style={{ ...styles.onglet, ...(onglet === 'reponses' ? styles.ongletActif : {}) }}
             onClick={() => setOnglet('reponses')}
-          >Réponses</button>
+          >{t('onglet_reponses')}</button>
         </div>
 
         {onglet === 'reponses' ? (
@@ -244,6 +245,7 @@ function Interrupteur({ actif, onClick }) {
 }
 
 function SectionHeures({ mission, reponses, peutModifier, peutValider, onChat }) {
+  const { t } = useTranslation();
   const [creneaux, setCreneaux] = useState([]);
   const [chargement, setChargement] = useState(true);
   const [edition, setEdition] = useState(null);
@@ -264,10 +266,10 @@ function SectionHeures({ mission, reponses, peutModifier, peutValider, onChat })
     return creneaux.find((c) => c.utilisateur_id === utilisateurId && !c.est_heure_supplementaire);
   }
 
-  if (chargement) return <p style={styles.texteAttente}>Chargement...</p>;
+  if (chargement) return <p style={styles.texteAttente}>{t('chargement')}</p>;
 
   if (reponses.length === 0) {
-    return <p style={styles.texteAttente}>Aucun employé disponible pour l'instant.</p>;
+    return <p style={styles.texteAttente}>{t('aucune_donnee')}</p>;
   }
 
   return (
@@ -303,22 +305,22 @@ function SectionHeures({ mission, reponses, peutModifier, peutValider, onChat })
                 <StatutValidationBadge statut={creneau.statut_validation} />
                 {peutValider && creneau.statut_validation === 'en_attente' && (
                   <>
-                    <button style={styles.boutonMini} onClick={() => api.validerCreneau(creneau.id, 'valide').then(charger)}>Valider</button>
-                    <button style={styles.boutonMiniAnnuler} onClick={() => api.validerCreneau(creneau.id, 'annule').then(charger)}>Annuler</button>
+                    <button style={styles.boutonMini} onClick={() => api.validerCreneau(creneau.id, 'valide').then(charger)}>{t('valider')}</button>
+                    <button style={styles.boutonMiniAnnuler} onClick={() => api.validerCreneau(creneau.id, 'annule').then(charger)}>{t('annuler')}</button>
                   </>
                 )}
                 {peutModifier && (
-                  <button style={styles.boutonMini} onClick={() => setEdition(r.utilisateur_id)}>Modifier</button>
+                  <button style={styles.boutonMini} onClick={() => setEdition(r.utilisateur_id)}>{t('modifier')}</button>
                 )}
-                <button style={styles.boutonChat} title="Ouvrir la conversation" onClick={() => onChat(r.utilisateur_id)}>💬</button>
+                <button style={styles.boutonChat} title={t('nouvelle_conversation')} onClick={() => onChat(r.utilisateur_id)}>💬</button>
               </div>
             ) : peutModifier ? (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button style={styles.boutonMini} onClick={() => setEdition(r.utilisateur_id)}>Définir un créneau</button>
-                <button style={styles.boutonChat} title="Ouvrir la conversation" onClick={() => onChat(r.utilisateur_id)}>💬</button>
+                <button style={styles.boutonMini} onClick={() => setEdition(r.utilisateur_id)}>{t('definir_creneau')}</button>
+                <button style={styles.boutonChat} title={t('nouvelle_conversation')} onClick={() => onChat(r.utilisateur_id)}>💬</button>
               </div>
             ) : (
-              <span style={styles.texteAttente}>Non défini</span>
+              <span style={styles.texteAttente}>{t('non_defini')}</span>
             )}
           </div>
         );
@@ -328,6 +330,7 @@ function SectionHeures({ mission, reponses, peutModifier, peutValider, onChat })
 }
 
 function FormulaireCreneau({ mission, utilisateurId, initial, onAnnuler, onEnregistre }) {
+  const { t } = useTranslation();
   const [heureDebut, setHeureDebut] = useState(initial?.heure_debut || mission.heure_debut);
   const [heureFin, setHeureFin] = useState(initial?.heure_fin || mission.heure_fin);
   const [poste, setPoste] = useState(initial?.poste || '');
@@ -346,9 +349,9 @@ function FormulaireCreneau({ mission, utilisateurId, initial, onAnnuler, onEnreg
       <input type="time" value={heureDebut} onChange={(e) => setHeureDebut(e.target.value)} style={styles.inputHeure} />
       <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>à</span>
       <input type="time" value={heureFin} onChange={(e) => setHeureFin(e.target.value)} style={styles.inputHeure} />
-      <input type="text" value={poste} onChange={(e) => setPoste(e.target.value)} placeholder="Poste (ex: Accueil)" style={styles.inputPoste} />
+      <input type="text" value={poste} onChange={(e) => setPoste(e.target.value)} placeholder={t('poste_placeholder')} style={styles.inputPoste} />
       <label style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11.5, color: 'var(--text-secondary)' }}>
-        <input type="checkbox" checked={heureSup} onChange={(e) => setHeureSup(e.target.checked)} /> H. sup.
+        <input type="checkbox" checked={heureSup} onChange={(e) => setHeureSup(e.target.checked)} /> {t('heure_sup')}
       </label>
       <button style={styles.boutonMini} onClick={enregistrer}>OK</button>
       <button style={styles.boutonMiniAnnuler} onClick={onAnnuler}>✕</button>
@@ -357,10 +360,11 @@ function FormulaireCreneau({ mission, utilisateurId, initial, onAnnuler, onEnreg
 }
 
 function StatutValidationBadge({ statut }) {
+  const { t } = useTranslation();
   const config = {
-    en_attente: { texte: 'À valider', fond: 'var(--amber-soft)', couleur: 'var(--amber)' },
-    valide: { texte: 'Validé', fond: 'var(--emerald-soft)', couleur: 'var(--emerald)' },
-    annule: { texte: 'Annulé', fond: 'var(--red-soft)', couleur: 'var(--red)' },
+    en_attente: { texte: t('a_valider'), fond: 'var(--amber-soft)', couleur: 'var(--amber)' },
+    valide: { texte: t('valide'), fond: 'var(--emerald-soft)', couleur: 'var(--emerald)' },
+    annule: { texte: t('annule_statut'), fond: 'var(--red-soft)', couleur: 'var(--red)' },
   }[statut];
   return <span style={{ ...styles.badge, background: config.fond, color: config.couleur }}>{config.texte}</span>;
 }
@@ -386,10 +390,11 @@ function BarreSegmentee({ disponibles, indisponibles, enAttente }) {
 }
 
 function StatutBadge({ statut }) {
+  const { t } = useTranslation();
   const config = {
-    disponible: { texte: 'Disponible', fond: 'var(--emerald-soft)', couleur: 'var(--emerald)' },
-    indisponible: { texte: 'Indisponible', fond: 'var(--red-soft)', couleur: 'var(--red)' },
-    en_attente: { texte: 'En attente', fond: 'var(--canvas)', couleur: 'var(--text-secondary)' },
+    disponible: { texte: t('disponible'), fond: 'var(--emerald-soft)', couleur: 'var(--emerald)' },
+    indisponible: { texte: t('indisponible'), fond: 'var(--red-soft)', couleur: 'var(--red)' },
+    en_attente: { texte: t('en_attente'), fond: 'var(--canvas)', couleur: 'var(--text-secondary)' },
   }[statut];
   return (
     <span style={{ ...styles.badge, background: config.fond, color: config.couleur }}>{config.texte}</span>

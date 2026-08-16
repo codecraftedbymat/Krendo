@@ -90,7 +90,7 @@ export default function Planning() {
                   onClick={() => (missionsJour.length || absencesJour.length) && setJourOuvert({ date: jour, missionsJour, absencesJour })}
                 >
                   <span style={styles.numeroJour}>{jour.getDate()}</span>
-                  {!travaille && <span style={styles.etiquetteFerme}>Fermé</span>}
+                  {!travaille && <span style={styles.etiquetteFerme}>{t('ferme')}</span>}
                   <div style={styles.pastilles}>
                     {missionsJour.slice(0, 2).map((m) => (
                       <div key={m.id} style={styles.pastilleMission}>{m.titre}</div>
@@ -108,8 +108,8 @@ export default function Planning() {
           </div>
 
           <div style={styles.legende}>
-            <span style={styles.legendeItem}><span style={{ ...styles.pointLegende, background: 'var(--emerald)' }} /> Mission</span>
-            <span style={styles.legendeItem}><span style={{ ...styles.pointLegende, background: 'var(--amber)' }} /> Absence</span>
+            <span style={styles.legendeItem}><span style={{ ...styles.pointLegende, background: 'var(--emerald)' }} /> {t('legende_mission')}</span>
+            <span style={styles.legendeItem}><span style={{ ...styles.pointLegende, background: 'var(--amber)' }} /> {t('legende_absence')}</span>
           </div>
         </>
       )}
@@ -120,6 +120,7 @@ export default function Planning() {
 }
 
 function VueDuJour({ date, onChangeDate, missions, creneaux, absences }) {
+  const { t } = useTranslation();
   const [employes, setEmployes] = useState([]);
   const [chargement, setChargement] = useState(true);
 
@@ -161,7 +162,7 @@ function VueDuJour({ date, onChangeDate, missions, creneaux, absences }) {
     <div style={styles.blocJour}>
       <div style={styles.blocJourEntete}>
         <div>
-          <p style={styles.blocJourTitre}>Qui travaille</p>
+          <p style={styles.blocJourTitre}>{t('qui_travaille')}</p>
           <p style={styles.blocJourSousTitre}>{formatDateLongue(date)}</p>
         </div>
         <input
@@ -175,7 +176,7 @@ function VueDuJour({ date, onChangeDate, missions, creneaux, absences }) {
       {chargement ? (
         <p style={styles.texteAttente}>Chargement...</p>
       ) : employes.length === 0 && absencesJour.length === 0 ? (
-        <p style={styles.texteAttente}>Personne de prévu ce jour-là.</p>
+        <p style={styles.texteAttente}>{t('personne_prevue')}</p>
       ) : (
         <div style={styles.listeJour}>
           {employes.map((e, i) => (
@@ -186,7 +187,7 @@ function VueDuJour({ date, onChangeDate, missions, creneaux, absences }) {
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{e.mission}</div>
               </div>
               <span style={styles.heureTexteJour}>
-                {e.heureDebut}–{e.heureFin}{!e.defini && <span style={styles.parDefaut}> (par défaut)</span>}
+                {e.heureDebut}–{e.heureFin}{!e.defini && <span style={styles.parDefaut}> {t('par_defaut')}</span>}
               </span>
             </div>
           ))}
@@ -195,7 +196,7 @@ function VueDuJour({ date, onChangeDate, missions, creneaux, absences }) {
               <div style={{ ...styles.avatarPetit, background: 'var(--card)', color: 'var(--amber)' }}>{a.prenom[0]}{a.nom[0]}</div>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13.5, fontWeight: 600 }}>{a.prenom} {a.nom}</div>
-                <div style={{ fontSize: 12, color: 'var(--amber)' }}>Absent{a.prenom.endsWith('e') ? 'e' : ''}</div>
+                <div style={{ fontSize: 12, color: 'var(--amber)' }}>{t('absent')}</div>
               </div>
             </div>
           ))}
