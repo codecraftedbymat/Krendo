@@ -46,12 +46,12 @@ export default function Absences({ utilisateur }) {
       </div>
 
       {chargement ? (
-        <p style={styles.texteAttente}>Chargement...</p>
+        <p style={styles.texteAttente}>{t('chargement')}</p>
       ) : (
         <>
           {enAttente.length > 0 && (
             <>
-              <p style={styles.sectionLabel}>En attente ({enAttente.length})</p>
+              <p style={styles.sectionLabel}>{t('en_attente')} ({enAttente.length})</p>
               <div style={styles.liste}>
                 {enAttente.map((a) => (
                   <div key={a.id} style={styles.ligne} onClick={() => peutGererPourAutrui && setAbsenceOuverte(a)}>
@@ -59,7 +59,7 @@ export default function Absences({ utilisateur }) {
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 13.5, fontWeight: 600 }}>{a.prenom} {a.nom}</div>
                       <div style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
-                        Du {formatDateHeure(a.date_debut, a.heure_debut)} au {formatDateHeure(a.date_fin, a.heure_fin)}
+                        {t('du')} {formatDateHeure(a.date_debut, a.heure_debut)} {t('au')} {formatDateHeure(a.date_fin, a.heure_fin)}
                         {a.motif ? ` · ${a.motif}` : ''}
                       </div>
                     </div>
@@ -73,9 +73,9 @@ export default function Absences({ utilisateur }) {
             </>
           )}
 
-          <p style={{ ...styles.sectionLabel, marginTop: enAttente.length ? 28 : 0 }}>Historique</p>
+          <p style={{ ...styles.sectionLabel, marginTop: enAttente.length ? 28 : 0 }}>{t('historique')}</p>
           {traitees.length === 0 ? (
-            <p style={styles.texteAttente}>Aucune absence traitée pour l'instant.</p>
+            <p style={styles.texteAttente}>{t('aucune_donnee')}</p>
           ) : (
             <div style={styles.liste}>
               {traitees.map((a) => (
@@ -84,7 +84,7 @@ export default function Absences({ utilisateur }) {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: 13.5, fontWeight: 600 }}>{a.prenom} {a.nom}</div>
                     <div style={{ fontSize: 12.5, color: 'var(--text-secondary)' }}>
-                      Du {formatDateHeure(a.date_debut, a.heure_debut)} au {formatDateHeure(a.date_fin, a.heure_fin)}
+                      {t('du')} {formatDateHeure(a.date_debut, a.heure_debut)} {t('au')} {formatDateHeure(a.date_fin, a.heure_fin)}
                       {a.motif ? ` · ${a.motif}` : ''}
                     </div>
                   </div>
@@ -93,7 +93,7 @@ export default function Absences({ utilisateur }) {
                     background: a.statut === 'acceptee' ? 'var(--emerald-soft)' : 'var(--red-soft)',
                     color: a.statut === 'acceptee' ? 'var(--emerald)' : 'var(--red)',
                   }}>
-                    {a.statut === 'acceptee' ? 'Acceptée' : 'Refusée'}
+                    {a.statut === 'acceptee' ? t('acceptee') : t('refusee')}
                   </span>
                 </div>
               ))}
@@ -121,6 +121,7 @@ export default function Absences({ utilisateur }) {
 }
 
 function DetailAbsence({ absence, onFermer, onMaj }) {
+  const { t } = useTranslation();
   const [champ, setChamp] = useState({
     date_debut: absence.date_debut, heure_debut: absence.heure_debut,
     date_fin: absence.date_fin, heure_fin: absence.heure_fin, motif: absence.motif || '',
@@ -169,7 +170,7 @@ function DetailAbsence({ absence, onFermer, onMaj }) {
               background: absence.statut === 'acceptee' ? 'var(--emerald-soft)' : absence.statut === 'refusee' ? 'var(--red-soft)' : 'var(--amber-soft)',
               color: absence.statut === 'acceptee' ? 'var(--emerald)' : absence.statut === 'refusee' ? 'var(--red)' : 'var(--amber)',
             }}>
-              {absence.statut === 'acceptee' ? 'Acceptée' : absence.statut === 'refusee' ? 'Refusée' : 'En attente'}
+              {absence.statut === 'acceptee' ? t('acceptee') : absence.statut === 'refusee' ? t('refusee') : t('en_attente')}
             </span>
           </div>
           <button type="button" style={styles.fermer} onClick={onFermer}>✕</button>
@@ -177,35 +178,35 @@ function DetailAbsence({ absence, onFermer, onMaj }) {
 
         <div style={styles.formGrille}>
           <label style={styles.champLabel}>
-            <span style={styles.champTexte}>Début</span>
+            <span style={styles.champTexte}>{t('champ_debut')}</span>
             <input required type="date" style={styles.input} value={champ.date_debut} onChange={(e) => set('date_debut', e.target.value)} />
           </label>
           <label style={styles.champLabel}>
-            <span style={styles.champTexte}>Heure</span>
+            <span style={styles.champTexte}>{t('champ_heure')}</span>
             <input required type="time" style={styles.input} value={champ.heure_debut} onChange={(e) => set('heure_debut', e.target.value)} />
           </label>
           <label style={styles.champLabel}>
-            <span style={styles.champTexte}>Fin</span>
+            <span style={styles.champTexte}>{t('champ_fin')}</span>
             <input required type="date" style={styles.input} value={champ.date_fin} onChange={(e) => set('date_fin', e.target.value)} />
           </label>
           <label style={styles.champLabel}>
-            <span style={styles.champTexte}>Heure</span>
+            <span style={styles.champTexte}>{t('champ_heure')}</span>
             <input required type="time" style={styles.input} value={champ.heure_fin} onChange={(e) => set('heure_fin', e.target.value)} />
           </label>
         </div>
 
         <label style={styles.champLabel}>
-          <span style={styles.champTexte}>Motif</span>
+          <span style={styles.champTexte}>{t('champ_motif')}</span>
           <input style={styles.input} value={champ.motif} onChange={(e) => set('motif', e.target.value)} />
         </label>
 
         {erreur && <div style={styles.erreurForm}>{erreur}</div>}
 
         <button type="submit" disabled={envoi} style={styles.boutonPrincipalLarge}>
-          {envoi ? 'Enregistrement...' : 'Enregistrer les modifications'}
+          {envoi ? 'Enregistrement...' : t('enregistrer_modifications')}
         </button>
         <button type="button" disabled={envoi} style={styles.boutonSupprimerLarge} onClick={supprimer}>
-          Supprimer cette absence
+          {t('supprimer_absence')}
         </button>
       </form>
     </div>
@@ -213,6 +214,7 @@ function DetailAbsence({ absence, onFermer, onMaj }) {
 }
 
 function FormulaireConge({ onFermer, onCree }) {
+  const { t } = useTranslation();
   const [employes, setEmployes] = useState([]);
   const [chargementEmployes, setChargementEmployes] = useState(true);
   const [champ, setChamp] = useState({
@@ -248,20 +250,20 @@ function FormulaireConge({ onFermer, onCree }) {
     <div style={styles.overlay} onClick={onFermer}>
       <form style={styles.panneau} onClick={(e) => e.stopPropagation()} onSubmit={handleSubmit}>
         <div style={styles.panneauEntete}>
-          <h2 style={styles.panneauTitre}>Mettre un employé en congé</h2>
+          <h2 style={styles.panneauTitre}>{t('mettre_en_conge')}</h2>
           <button type="button" style={styles.fermer} onClick={onFermer}>✕</button>
         </div>
         <p style={styles.panneauNote}>
-          Cette absence sera directement enregistrée comme acceptée, sans passer par une demande.
+          {t('note_conge')}
         </p>
 
         <label style={styles.champLabel}>
-          <span style={styles.champTexte}>Employé</span>
+          <span style={styles.champTexte}>{t('employe')}</span>
           {chargementEmployes ? (
-            <p style={styles.texteAttente}>Chargement...</p>
+            <p style={styles.texteAttente}>{t('chargement')}</p>
           ) : (
             <select required style={styles.input} value={champ.utilisateur_id} onChange={(e) => set('utilisateur_id', e.target.value)}>
-              <option value="">Choisir un employé</option>
+              <option value="">{t('choisir_employe')}</option>
               {employes.map((e) => <option key={e.id} value={e.id}>{e.prenom} {e.nom}</option>)}
             </select>
           )}
@@ -269,32 +271,32 @@ function FormulaireConge({ onFermer, onCree }) {
 
         <div style={styles.formGrille}>
           <label style={styles.champLabel}>
-            <span style={styles.champTexte}>Début</span>
+            <span style={styles.champTexte}>{t('champ_debut')}</span>
             <input required type="date" style={styles.input} value={champ.date_debut} onChange={(e) => set('date_debut', e.target.value)} />
           </label>
           <label style={styles.champLabel}>
-            <span style={styles.champTexte}>Heure</span>
+            <span style={styles.champTexte}>{t('champ_heure')}</span>
             <input required type="time" style={styles.input} value={champ.heure_debut} onChange={(e) => set('heure_debut', e.target.value)} />
           </label>
           <label style={styles.champLabel}>
-            <span style={styles.champTexte}>Fin</span>
+            <span style={styles.champTexte}>{t('champ_fin')}</span>
             <input required type="date" style={styles.input} value={champ.date_fin} onChange={(e) => set('date_fin', e.target.value)} />
           </label>
           <label style={styles.champLabel}>
-            <span style={styles.champTexte}>Heure</span>
+            <span style={styles.champTexte}>{t('champ_heure')}</span>
             <input required type="time" style={styles.input} value={champ.heure_fin} onChange={(e) => set('heure_fin', e.target.value)} />
           </label>
         </div>
 
         <label style={styles.champLabel}>
-          <span style={styles.champTexte}>Motif (optionnel)</span>
+          <span style={styles.champTexte}>{t('champ_motif')}</span>
           <input style={styles.input} value={champ.motif} onChange={(e) => set('motif', e.target.value)} placeholder="Congés payés, arrêt maladie..." />
         </label>
 
         {erreur && <div style={styles.erreurForm}>{erreur}</div>}
 
         <button type="submit" disabled={envoi} style={styles.boutonPrincipalLarge}>
-          {envoi ? 'Enregistrement...' : 'Mettre en congé'}
+          {envoi ? 'Enregistrement...' : t('nouveau_conge').replace('+ ', '')}
         </button>
       </form>
     </div>

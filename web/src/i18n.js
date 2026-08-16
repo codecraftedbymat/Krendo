@@ -39,6 +39,9 @@ const dictionnaires = {
     acceptee: 'Acceptée',
     refusee: 'Refusée',
     aucune_donnee: 'Aucune donnée pour le moment.',
+    historique: 'Historique',
+    du: 'Du',
+    au: 'au',
 
     soustitre_planning: "Vue d'ensemble des missions et absences de l'équipe.",
     soustitre_heures: "Validez ou modifiez les heures de toute l'équipe, tous chantiers confondus.",
@@ -120,6 +123,12 @@ const dictionnaires = {
     mot_de_passe_provisoire: 'Mot de passe provisoire',
     choisir_role: 'Choisir un rôle',
     creer_compte: 'Créer le compte',
+    employe: 'Employé',
+    choisir_employe: 'Choisir un employé',
+    mettre_en_conge: 'Mettre un employé en congé',
+    note_conge: "Cette absence sera directement enregistrée comme acceptée, sans passer par une demande.",
+    enregistrer_modifications: 'Enregistrer les modifications',
+    supprimer_absence: 'Supprimer cette absence',
 
     // Statistiques
     heures_validees: 'Heures validées',
@@ -213,6 +222,9 @@ const dictionnaires = {
     acceptee: 'Goedgekeurd',
     refusee: 'Afgewezen',
     aucune_donnee: 'Nog geen gegevens beschikbaar.',
+    historique: 'Geschiedenis',
+    du: 'Van',
+    au: 'tot',
 
     soustitre_planning: 'Overzicht van opdrachten en afwezigheden van het team.',
     soustitre_heures: 'Keur de uren van het hele team goed of pas ze aan, over alle opdrachten heen.',
@@ -291,6 +303,12 @@ const dictionnaires = {
     mot_de_passe_provisoire: 'Tijdelijk wachtwoord',
     choisir_role: 'Kies een rol',
     creer_compte: 'Account aanmaken',
+    employe: 'Medewerker',
+    choisir_employe: 'Kies een medewerker',
+    mettre_en_conge: 'Verlof toekennen aan een medewerker',
+    note_conge: 'Deze afwezigheid wordt direct als goedgekeurd geregistreerd, zonder aanvraagprocedure.',
+    enregistrer_modifications: 'Wijzigingen opslaan',
+    supprimer_absence: 'Deze afwezigheid verwijderen',
 
     heures_validees: 'Goedgekeurde uren',
     missions_ce_mois: 'Opdrachten deze maand',
