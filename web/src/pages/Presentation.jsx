@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, ArrowUpRight, Check } from 'lucide-react';
+import { useTranslation } from '../LangueContext';
+import SelecteurLangue from '../components/SelecteurLangue';
 
 export default function Presentation() {
+  const { t } = useTranslation();
   return (
     <div style={styles.page}>
       <header style={styles.entete}>
@@ -9,24 +12,26 @@ export default function Presentation() {
           <div style={styles.logoMark}>K</div>
           <span style={styles.logoText}>Krendo</span>
         </div>
-        <Link to="/" style={styles.boutonConnexion}>Se connecter</Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <SelecteurLangue />
+          <Link to="/" style={styles.boutonConnexion}>{t('se_connecter')}</Link>
+        </div>
       </header>
 
       <section style={styles.hero}>
         <div style={styles.heroGauche}>
-          <p style={styles.eyebrow}>Gestion de planning d'équipe</p>
+          <p style={styles.eyebrow}>{t('vitrine_eyebrow')}</p>
           <h1 style={styles.titreHero}>
-            Le planning de<br />votre équipe,<br /><span style={styles.titreAccent}>à la minute près.</span>
+            {t('vitrine_titre1')}<br />{t('vitrine_titre2')}<br /><span style={styles.titreAccent}>{t('vitrine_titre3')}</span>
           </h1>
           <p style={styles.sousTitreHero}>
-            Missions, disponibilités, absences, heures et messagerie d'équipe — un seul outil,
-            pensé pour les entreprises qui gèrent du personnel sur le terrain.
+            {t('vitrine_soustitre')}
           </p>
           <div style={styles.heroCtas}>
             <Link to="/" style={styles.boutonHeroPrincipal}>
-              Se connecter <ArrowRight size={16} strokeWidth={2.5} />
+              {t('se_connecter')} <ArrowRight size={16} strokeWidth={2.5} />
             </Link>
-            <a href="mailto:alainbiloba@gmail.com" style={styles.boutonHeroSecondaire}>Demander une démo</a>
+            <a href="mailto:alainbiloba@gmail.com" style={styles.boutonHeroSecondaire}>{t('demander_demo')}</a>
           </div>
         </div>
 
@@ -39,10 +44,10 @@ export default function Presentation() {
           <div style={styles.mockupCarte}>
             <div style={styles.mockupEntete}>
               <div>
-                <span style={styles.mockupTitre}>Salon Tech Expo</span>
-                <p style={styles.mockupInfo}>18 août · Paris Expo</p>
+                <span style={styles.mockupTitre}>{t('vitrine_mockup_titre')}</span>
+                <p style={styles.mockupInfo}>{t('vitrine_mockup_lieu')}</p>
               </div>
-              <span style={styles.mockupBadge}>6 requis</span>
+              <span style={styles.mockupBadge}>{t('vitrine_mockup_requis')}</span>
             </div>
             <div style={styles.mockupBarre}>
               <div style={{ width: '66%', background: 'var(--emerald)' }} />
@@ -53,18 +58,18 @@ export default function Presentation() {
               <div style={styles.mockupLigne}>
                 <div style={styles.mockupAvatar}>SL</div>
                 <span style={styles.mockupNom}>Sofia Lambert</span>
-                <span style={styles.mockupStatutOk}><Check size={11} strokeWidth={3} /> Disponible</span>
+                <span style={styles.mockupStatutOk}><Check size={11} strokeWidth={3} /> {t('disponible')}</span>
               </div>
               <div style={styles.mockupLigne}>
                 <div style={{ ...styles.mockupAvatar, background: '#EDE9DD', color: '#8A6416' }}>ML</div>
                 <span style={styles.mockupNom}>Marc Leroy</span>
-                <span style={styles.mockupStatutAttente}>En attente</span>
+                <span style={styles.mockupStatutAttente}>{t('en_attente')}</span>
               </div>
             </div>
           </div>
           <div style={styles.statFlottante}>
             <span style={styles.statNombre}>4/6</span>
-            <span style={styles.statLabel}>confirmés</span>
+            <span style={styles.statLabel}>{t('vitrine_confirmes')}</span>
           </div>
         </div>
       </section>
@@ -84,49 +89,35 @@ export default function Presentation() {
 
       <section style={styles.sectionEtapes}>
         <div style={styles.enteteSection}>
-          <p style={styles.eyebrowSombre}>Fonctionnement</p>
-          <h2 style={styles.titreSection}>Trois étapes, pas plus.</h2>
+          <p style={styles.eyebrowSombre}>{t('vitrine_fonctionnement')}</p>
+          <h2 style={styles.titreSection}>{t('vitrine_etapes_titre')}</h2>
         </div>
         <div style={styles.listeEtapes}>
-          <LigneEtape numero="01" titre="Créez une mission" texte="Date, horaires, lieu, effectif nécessaire. Votre équipe est notifiée en un instant." />
-          <LigneEtape numero="02" titre="Suivez les réponses" texte="Chaque employé confirme sa disponibilité depuis son téléphone, en temps réel." />
-          <LigneEtape numero="03" titre="Validez les heures" texte="Créneaux, heures supplémentaires, validation, puis export direct pour la paie." />
+          <LigneEtape numero="01" titre={t('vitrine_etape1_titre')} texte={t('vitrine_etape1_texte')} />
+          <LigneEtape numero="02" titre={t('vitrine_etape2_titre')} texte={t('vitrine_etape2_texte')} />
+          <LigneEtape numero="03" titre={t('vitrine_etape3_titre')} texte={t('vitrine_etape3_texte')} />
         </div>
       </section>
 
       <section style={styles.sectionFonctionnalites}>
         <div style={styles.enteteSection}>
-          <p style={styles.eyebrowSombre}>Fonctionnalités</p>
-          <h2 style={styles.titreSection}>Tout ce dont vous avez besoin.</h2>
+          <p style={styles.eyebrowSombre}>{t('vitrine_fonctionnalites')}</p>
+          <h2 style={styles.titreSection}>{t('vitrine_fonctionnalites_titre')}</h2>
         </div>
 
-        <LigneFonctionnalite
-          numero="01" titre="Gestion de missions"
-          texte="Créez une mission en quelques secondes. Votre équipe reçoit une notification instantanée et confirme sa disponibilité directement depuis son téléphone."
-        />
-        <LigneFonctionnalite
-          numero="02" titre="Absences"
-          texte="Vos employés font leur demande, vous validez en un clic — ou déclarez une absence directement, sans attendre."
-          inverse
-        />
-        <LigneFonctionnalite
-          numero="03" titre="Heures & validation"
-          texte="Définissez les créneaux, marquez les heures supplémentaires, validez le tout, puis exportez pour la paie en un clic."
-        />
-        <LigneFonctionnalite
-          numero="04" titre="Messagerie & planning"
-          texte="Chat interne avec pièces jointes et accusés de lecture. Vue calendrier partagée de qui travaille, où, et quand."
-          inverse
-        />
+        <LigneFonctionnalite numero="01" titre={t('vitrine_f1_titre')} texte={t('vitrine_f1_texte')} />
+        <LigneFonctionnalite numero="02" titre={t('vitrine_f2_titre')} texte={t('vitrine_f2_texte')} inverse />
+        <LigneFonctionnalite numero="03" titre={t('vitrine_f3_titre')} texte={t('vitrine_f3_texte')} />
+        <LigneFonctionnalite numero="04" titre={t('vitrine_f4_titre')} texte={t('vitrine_f4_texte')} inverse />
       </section>
 
       <section style={styles.sectionCta}>
-        <h2 style={styles.titreCta}>Envie d'essayer Krendo ?</h2>
-        <p style={styles.texteCta}>Écrivez-nous, nous mettons votre entreprise en place rapidement.</p>
+        <h2 style={styles.titreCta}>{t('vitrine_cta_titre')}</h2>
+        <p style={styles.texteCta}>{t('vitrine_cta_texte')}</p>
         <a href="mailto:alainbiloba@gmail.com" style={styles.boutonCtaFinal}>
           alainbiloba@gmail.com <ArrowUpRight size={16} strokeWidth={2.5} />
         </a>
-        <a href="tel:+32784805050" style={styles.lienTelephone}>ou appelez le 078 480 50 50</a>
+        <a href="tel:+32784805050" style={styles.lienTelephone}>{t('vitrine_appelez')} 078 480 50 50</a>
       </section>
 
       <footer style={styles.pied}>
